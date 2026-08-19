@@ -1,0 +1,110 @@
+{
+  "schema": "super-kaguya.smb1-reference.v1",
+  "source": {
+    "repository": "https://github.com/meth-meth-method/super-mario",
+    "commit": "99721c2a1356ded2890c9d12444d96a2df56d10d",
+    "path": "public/levels/1-1.json",
+    "crossChecks": [
+      "https://github.com/Fulox/FullScreenMario-JSON/blob/b5785d40d1ea6a3297bfad984b94208ba2219277/maps.js",
+      "https://github.com/pgattic/smb1-disasm/blob/6d0d367ccb7c9d037ca3b5e50453c55bd74cb869/src/levels.asm",
+      "https://nesmaps.com/maps/SuperMarioBrothers/SuperMarioBrosWorld1-1Map.html"
+    ]
+  },
+  "sourceGrid": {
+    "widthTiles": 224,
+    "heightTiles": 15,
+    "tileSizePixels": 16
+  },
+  "playableTransform": {
+    "xScale": 2,
+    "sourceRowsToGameY": {
+      "5": 72,
+      "9": 136,
+      "13": 232
+    },
+    "notes": "Horizontal placement is exact 2x. Vertical anchors are adapted to a 288px canvas and 60px standing collider."
+  },
+  "groundSpans": [
+    { "xTile": 0, "lengthTiles": 69, "surfaceRow": 13 },
+    { "xTile": 71, "lengthTiles": 15, "surfaceRow": 13 },
+    { "xTile": 89, "lengthTiles": 64, "surfaceRow": 13 },
+    { "xTile": 155, "lengthTiles": 69, "surfaceRow": 13 }
+  ],
+  "pits": [
+    { "xTile": 69, "lengthTiles": 2 },
+    { "xTile": 86, "lengthTiles": 3 },
+    { "xTile": 153, "lengthTiles": 2 }
+  ],
+  "bricks": [
+    { "xTile": 20, "yRow": 9, "lengthTiles": 5 },
+    { "xTile": 77, "yRow": 9, "lengthTiles": 3 },
+    { "xTile": 80, "yRow": 5, "lengthTiles": 8 },
+    { "xTile": 91, "yRow": 5, "lengthTiles": 4 },
+    { "xTile": 94, "yRow": 9, "lengthTiles": 1 },
+    { "xTile": 100, "yRow": 9, "lengthTiles": 2 },
+    { "xTile": 118, "yRow": 9, "lengthTiles": 1 },
+    { "xTile": 121, "yRow": 5, "lengthTiles": 3 },
+    { "xTile": 128, "yRow": 5, "lengthTiles": 4 },
+    { "xTile": 129, "yRow": 9, "lengthTiles": 2 },
+    { "xTile": 168, "yRow": 9, "lengthTiles": 4 }
+  ],
+  "questionBlocks": [
+    { "xTile": 16, "yRow": 9 },
+    { "xTile": 22, "yRow": 5 },
+    { "xTile": 21, "yRow": 9 },
+    { "xTile": 23, "yRow": 9 },
+    { "xTile": 78, "yRow": 9 },
+    { "xTile": 94, "yRow": 5 },
+    { "xTile": 106, "yRow": 9 },
+    { "xTile": 109, "yRow": 5 },
+    { "xTile": 109, "yRow": 9 },
+    { "xTile": 112, "yRow": 9 },
+    { "xTile": 129, "yRow": 5 },
+    { "xTile": 130, "yRow": 5 },
+    { "xTile": 170, "yRow": 9 }
+  ],
+  "pipes": [
+    { "xTile": 28, "topRow": 11, "heightTiles": 2 },
+    { "xTile": 38, "topRow": 10, "heightTiles": 3 },
+    { "xTile": 46, "topRow": 9, "heightTiles": 4 },
+    { "xTile": 57, "topRow": 9, "heightTiles": 4, "entersBonusRoom": true },
+    { "xTile": 163, "topRow": 11, "heightTiles": 2, "exitsBonusRoom": true },
+    { "xTile": 179, "topRow": 11, "heightTiles": 2 }
+  ],
+  "stairs": [
+    { "pattern": "up-4", "xTile": 134 },
+    { "pattern": "down-4", "xTile": 140 },
+    { "pattern": "up-4", "xTile": 148 },
+    { "pattern": "stack-4", "xTile": 152 },
+    { "pattern": "down-4", "xTile": 155 },
+    { "pattern": "final", "xTile": 181 }
+  ],
+  "enemies": [
+    { "kind": "goomba-brown", "x": 352, "y": 192 },
+    { "kind": "goomba-brown", "x": 640, "y": 192 },
+    { "kind": "goomba-brown", "x": 816, "y": 192 },
+    { "kind": "goomba-brown", "x": 840, "y": 192 },
+    { "kind": "goomba-brown", "x": 1280, "y": 64 },
+    { "kind": "goomba-brown", "x": 1312, "y": 64 },
+    { "kind": "goomba-brown", "x": 1552, "y": 192 },
+    { "kind": "goomba-brown", "x": 1576, "y": 192 },
+    { "kind": "koopa-green", "x": 1712, "y": 185 },
+    { "kind": "goomba-brown", "x": 1824, "y": 192 },
+    { "kind": "goomba-brown", "x": 1848, "y": 192 },
+    { "kind": "goomba-brown", "x": 1984, "y": 192 },
+    { "kind": "goomba-brown", "x": 2008, "y": 192 },
+    { "kind": "goomba-brown", "x": 2048, "y": 192 },
+    { "kind": "goomba-brown", "x": 2072, "y": 192 },
+    { "kind": "goomba-brown", "x": 2784, "y": 192 },
+    { "kind": "goomba-brown", "x": 2808, "y": 192 }
+  ],
+  "finish": {
+    "flagPole": { "xTile": 198, "topRow": 2, "bottomRow": 12 },
+    "castle": { "xTile": 202, "topRow": 8 }
+  },
+  "bonusRoom": {
+    "includedInPlayableMap": false,
+    "reason": "Current runtime has no pipe transition or separate-area camera.",
+    "machineReadableSource": "../../provenance/fullscreenmario-json/maps.js#World11JSON"
+  }
+}

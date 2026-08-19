@@ -1,0 +1,680 @@
+{
+  "compressionlevel": -1,
+  "height": 18,
+  "infinite": false,
+  "layers": [
+    {
+      "draworder": "topdown",
+      "id": 1,
+      "name": "Objects",
+      "objects": [
+        {
+          "id": 1,
+          "name": "Player Start",
+          "type": "PlayerSpawn",
+          "point": true,
+          "x": 64,
+          "y": 256,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 2,
+          "name": "Outer Moon City",
+          "type": "AreaRegion",
+          "x": 0,
+          "y": 0,
+          "width": 1024,
+          "height": 288,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "name", "type": "string", "value": "OUTER MOON CITY" },
+            { "name": "background", "type": "string", "value": "lunar" }
+          ]
+        },
+        {
+          "id": 3,
+          "name": "Memory Gallery",
+          "type": "AreaRegion",
+          "x": 1024,
+          "y": 0,
+          "width": 512,
+          "height": 288,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "name", "type": "string", "value": "MEMORY GALLERY" },
+            { "name": "background", "type": "string", "value": "night" }
+          ]
+        },
+        {
+          "id": 4,
+          "name": "Rift Court",
+          "type": "AreaRegion",
+          "x": 1536,
+          "y": 0,
+          "width": 1536,
+          "height": 288,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "name", "type": "string", "value": "RIFT COURT" },
+            { "name": "background", "type": "string", "value": "dawn" },
+            { "name": "transition", "type": "string", "value": "smooth" }
+          ]
+        },
+        {
+          "id": 5,
+          "name": "Ground A",
+          "type": "Solid",
+          "x": 0,
+          "y": 256,
+          "width": 992,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "visual", "type": "bool", "value": true }
+          ]
+        },
+        {
+          "id": 6,
+          "name": "Sealed Region Wall",
+          "type": "Solid",
+          "x": 992,
+          "y": 0,
+          "width": 32,
+          "height": 288,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "visual", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 7,
+          "name": "Ground B",
+          "type": "Solid",
+          "x": 1024,
+          "y": 256,
+          "width": 512,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "visual", "type": "bool", "value": true }
+          ]
+        },
+        {
+          "id": 8,
+          "name": "Ground C Approach",
+          "type": "Solid",
+          "x": 1536,
+          "y": 256,
+          "width": 352,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "visual", "type": "bool", "value": true }
+          ]
+        },
+        {
+          "id": 9,
+          "name": "Ground C Rift And Arena",
+          "type": "Solid",
+          "x": 2240,
+          "y": 256,
+          "width": 832,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "visual", "type": "bool", "value": true }
+          ]
+        },
+        {
+          "id": 10,
+          "name": "Sushi Lucky Block",
+          "type": "QuestionBlock",
+          "x": 192,
+          "y": 160,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "contents", "type": "string", "value": "food" },
+            { "name": "score", "type": "int", "value": 10 }
+          ]
+        },
+        {
+          "id": 11,
+          "name": "Power Lucky Block",
+          "type": "QuestionBlock",
+          "x": 256,
+          "y": 160,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "contents", "type": "string", "value": "mushroom" },
+            { "name": "score", "type": "int", "value": 10 }
+          ]
+        },
+        {
+          "id": 12,
+          "name": "Moon Lucky Block",
+          "type": "QuestionBlock",
+          "x": 320,
+          "y": 160,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "contents", "type": "string", "value": "star" },
+            { "name": "score", "type": "int", "value": 10 }
+          ]
+        },
+        {
+          "id": 13,
+          "name": "Breakable Brick",
+          "type": "BrickBlock",
+          "x": 384,
+          "y": 160,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "breakable", "type": "bool", "value": true },
+            { "name": "score", "type": "int", "value": 10 }
+          ]
+        },
+        {
+          "id": 14,
+          "name": "Fixed Brick",
+          "type": "BrickBlock",
+          "x": 416,
+          "y": 160,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "breakable", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 15,
+          "name": "Authored Sushi A",
+          "type": "FoodPickup",
+          "point": true,
+          "x": 544,
+          "y": 256,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "score", "type": "int", "value": 10 }
+          ]
+        },
+        {
+          "id": 16,
+          "name": "Patrol Enemy A",
+          "type": "Enemy",
+          "point": true,
+          "x": 512,
+          "y": 256,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "direction", "type": "int", "value": -1 },
+            { "name": "variant", "type": "string", "value": "0" },
+            { "name": "health", "type": "int", "value": 1 }
+          ]
+        },
+        {
+          "id": 17,
+          "name": "Patrol Enemy B",
+          "type": "Enemy",
+          "point": true,
+          "x": 672,
+          "y": 256,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "direction", "type": "int", "value": 1 },
+            { "name": "variant", "type": "string", "value": "1" },
+            { "name": "health", "type": "int", "value": 1 }
+          ]
+        },
+        {
+          "id": 18,
+          "name": "First Lantern",
+          "type": "Checkpoint",
+          "x": 724,
+          "y": 208,
+          "width": 24,
+          "height": 48,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 19,
+          "name": "Opening Story",
+          "type": "StoryTrigger",
+          "x": 0,
+          "y": 0,
+          "width": 64,
+          "height": 288,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "trigger", "type": "string", "value": "start" },
+            { "name": "once", "type": "bool", "value": true },
+            { "name": "freezePlayer", "type": "bool", "value": true },
+            { "name": "dialogue", "type": "string", "value": "[{\"speaker\":\"KAGUYA\",\"text\":\"The old Moon City is losing its light. I have to reach the far gate.\",\"anchor\":\"player\",\"cameraX\":256,\"cameraDuration\":0.7},{\"speaker\":\"MOON SENTRY\",\"text\":\"No one leaves the Moon tonight.\",\"anchor\":\"enemy\",\"targetId\":16,\"cameraX\":512,\"cameraDuration\":0.6},{\"speaker\":\"SYSTEM\",\"text\":\"Collect power food, test every route device, and defeat the gatekeeper before time runs out.\",\"anchor\":\"trigger\",\"cameraX\":864,\"cameraDuration\":1.1}]" }
+          ]
+        },
+        {
+          "id": 20,
+          "name": "Warp Warning Story",
+          "type": "StoryTrigger",
+          "x": 768,
+          "y": 0,
+          "width": 96,
+          "height": 288,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "trigger", "type": "string", "value": "area" },
+            { "name": "once", "type": "bool", "value": true },
+            { "name": "freezePlayer", "type": "bool", "value": true },
+            { "name": "dialogue", "type": "string", "value": "[{\"speaker\":\"KAGUYA\",\"text\":\"That moon well is still connected to the sealed gallery.\",\"anchor\":\"trigger\",\"cameraX\":896,\"cameraDuration\":0.8},{\"speaker\":\"SYSTEM\",\"text\":\"Stand within the well and press DOWN.\",\"anchor\":\"trigger\",\"cameraX\":896,\"cameraDuration\":0.2}]" }
+          ]
+        },
+        {
+          "id": 21,
+          "name": "Moon Well Entrance",
+          "type": "WarpGate",
+          "x": 864,
+          "y": 192,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "channel", "type": "string", "value": "memory-well" },
+            { "name": "direction", "type": "string", "value": "down" },
+            { "name": "requiresInput", "type": "bool", "value": true }
+          ]
+        },
+        {
+          "id": 22,
+          "name": "Moon Well Exit",
+          "type": "WarpGate",
+          "x": 1088,
+          "y": 192,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "channel", "type": "string", "value": "memory-well" },
+            { "name": "direction", "type": "string", "value": "up" },
+            { "name": "requiresInput", "type": "bool", "value": true }
+          ]
+        },
+        {
+          "id": 23,
+          "name": "Gallery Story",
+          "type": "StoryTrigger",
+          "x": 1152,
+          "y": 0,
+          "width": 96,
+          "height": 288,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "trigger", "type": "string", "value": "area" },
+            { "name": "once", "type": "bool", "value": true },
+            { "name": "freezePlayer", "type": "bool", "value": false },
+            { "name": "dialogue", "type": "string", "value": "[{\"speaker\":\"ARCHIVE\",\"text\":\"Transit confirmed. The outer court lies beyond this gallery.\",\"anchor\":\"trigger\",\"cameraX\":1280,\"cameraDuration\":0.6,\"hold\":2.0}]" }
+          ]
+        },
+        {
+          "id": 24,
+          "name": "Gallery Power Block",
+          "type": "QuestionBlock",
+          "x": 1248,
+          "y": 160,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "contents", "type": "string", "value": "mushroom" },
+            { "name": "score", "type": "int", "value": 10 }
+          ]
+        },
+        {
+          "id": 25,
+          "name": "Gallery Breakable Brick",
+          "type": "BrickBlock",
+          "x": 1312,
+          "y": 160,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "breakable", "type": "bool", "value": true },
+            { "name": "score", "type": "int", "value": 10 }
+          ]
+        },
+        {
+          "id": 26,
+          "name": "Authored Sushi B",
+          "type": "FoodPickup",
+          "point": true,
+          "x": 1408,
+          "y": 256,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "score", "type": "int", "value": 10 }
+          ]
+        },
+        {
+          "id": 27,
+          "name": "Vertical Moving Platform",
+          "type": "MovingPlatform",
+          "x": 1648,
+          "y": 192,
+          "width": 80,
+          "height": 16,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "axis", "type": "string", "value": "vertical" },
+            { "name": "range", "type": "int", "value": 48 },
+            { "name": "speed", "type": "int", "value": 42 },
+            { "name": "phase", "type": "float", "value": 0 }
+          ]
+        },
+        {
+          "id": 28,
+          "name": "One Way Bridge",
+          "type": "OneWayPlatform",
+          "x": 1888,
+          "y": 208,
+          "width": 96,
+          "height": 16,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 29,
+          "name": "Falling Bridge",
+          "type": "FallingPlatform",
+          "x": 2016,
+          "y": 176,
+          "width": 96,
+          "height": 16,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "delay", "type": "float", "value": 0.7 },
+            { "name": "respawn", "type": "float", "value": 3.0 }
+          ]
+        },
+        {
+          "id": 30,
+          "name": "Horizontal Moving Platform",
+          "type": "MovingPlatform",
+          "x": 2144,
+          "y": 208,
+          "width": 80,
+          "height": 16,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "axis", "type": "string", "value": "horizontal" },
+            { "name": "range", "type": "int", "value": 48 },
+            { "name": "speed", "type": "int", "value": 44 },
+            { "name": "phase", "type": "float", "value": 0.8 }
+          ]
+        },
+        {
+          "id": 31,
+          "name": "Low Gravity Dust Field",
+          "type": "LowGravityZone",
+          "x": 2080,
+          "y": 0,
+          "width": 512,
+          "height": 256,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "gravityScale", "type": "float", "value": 0.35 },
+            { "name": "impulse", "type": "float", "value": 215 },
+            { "name": "drag", "type": "float", "value": 1.5 }
+          ]
+        },
+        {
+          "id": 32,
+          "name": "Lunar Rift",
+          "type": "LunarRift",
+          "x": 2304,
+          "y": 224,
+          "width": 224,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "damage", "type": "int", "value": 20 },
+            { "name": "interval", "type": "float", "value": 0.8 }
+          ]
+        },
+        {
+          "id": 33,
+          "name": "Rift One Way Platform",
+          "type": "OneWayPlatform",
+          "x": 2320,
+          "y": 192,
+          "width": 80,
+          "height": 16,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 34,
+          "name": "Rift Falling Platform",
+          "type": "FallingPlatform",
+          "x": 2432,
+          "y": 160,
+          "width": 80,
+          "height": 16,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "delay", "type": "float", "value": 0.9 },
+            { "name": "respawn", "type": "float", "value": 3.5 }
+          ]
+        },
+        {
+          "id": 35,
+          "name": "Boss Lantern",
+          "type": "Checkpoint",
+          "x": 2556,
+          "y": 208,
+          "width": 24,
+          "height": 48,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 36,
+          "name": "Boss Introduction",
+          "type": "StoryTrigger",
+          "x": 2608,
+          "y": 0,
+          "width": 96,
+          "height": 288,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "trigger", "type": "string", "value": "area" },
+            { "name": "once", "type": "bool", "value": true },
+            { "name": "freezePlayer", "type": "bool", "value": true },
+            { "name": "dialogue", "type": "string", "value": "[{\"speaker\":\"MOON WARDEN\",\"text\":\"The final gate opens only when its guardian falls.\",\"anchor\":\"trigger\",\"cameraX\":2784,\"cameraDuration\":1.0},{\"speaker\":\"KAGUYA\",\"text\":\"Then I will make my own path to Earth.\",\"anchor\":\"player\",\"cameraX\":2656,\"cameraDuration\":0.7},{\"speaker\":\"SYSTEM\",\"text\":\"Every hit displays its damage. Defeat the guardian before the timer reaches zero.\",\"anchor\":\"portal\",\"cameraX\":3008,\"cameraDuration\":0.8}]" }
+          ]
+        },
+        {
+          "id": 37,
+          "name": "Moon Gatekeeper",
+          "type": "Boss",
+          "point": true,
+          "x": 2784,
+          "y": 256,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "health", "type": "int", "value": 100 },
+            { "name": "speed", "type": "float", "value": 42 },
+            { "name": "patrolRange", "type": "int", "value": 224 },
+            { "name": "jumpInterval", "type": "float", "value": 2.4 },
+            { "name": "shotInterval", "type": "float", "value": 1.7 },
+            { "name": "phaseCount", "type": "int", "value": 3 }
+          ]
+        },
+        {
+          "id": 38,
+          "name": "Boss Locked Moon Portal",
+          "type": "MoonPortal",
+          "x": 4000,
+          "y": 416,
+          "width": 96,
+          "height": 128,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "behavior", "type": "string", "value": "complete" },
+            { "name": "requiresBoss", "type": "bool", "value": true }
+          ]
+        },
+        {
+          "id": 39, "name": "Lower Mirror Gallery", "type": "AreaRegion",
+          "x": 3072, "y": 288, "width": 1024, "height": 288, "rotation": 0, "visible": true,
+          "properties": [
+            { "name": "name", "type": "string", "value": "LOWER MIRROR GALLERY" },
+            { "name": "background", "type": "string", "value": "night" },
+            { "name": "transition", "type": "string", "value": "edge" }
+          ]
+        },
+        {
+          "id": 40, "name": "Ground Lower Gallery", "type": "Solid",
+          "x": 3072, "y": 544, "width": 1024, "height": 32, "rotation": 0, "visible": true,
+          "properties": [{ "name": "visual", "type": "bool", "value": true }]
+        },
+        {
+          "id": 41, "name": "Reverse Gravity Ceiling", "type": "Solid",
+          "x": 3456, "y": 320, "width": 256, "height": 32, "rotation": 0, "visible": true,
+          "properties": [{ "name": "visual", "type": "bool", "value": false }]
+        },
+        {
+          "id": 42, "name": "Reverse Gravity Ceiling Art", "type": "HardBlock",
+          "x": 3456, "y": 320, "width": 256, "height": 32, "rotation": 0, "visible": true
+        },
+        {
+          "id": 43, "name": "Counterweight Lift A", "type": "LinkedPlatform",
+          "x": 3200, "y": 448, "width": 96, "height": 16, "rotation": 0, "visible": true,
+          "properties": [
+            { "name": "group", "type": "string", "value": "gallery-balance" },
+            { "name": "sign", "type": "int", "value": 1 },
+            { "name": "range", "type": "int", "value": 72 },
+            { "name": "speed", "type": "int", "value": 58 }
+          ]
+        },
+        {
+          "id": 44, "name": "Counterweight Lift B", "type": "LinkedPlatform",
+          "x": 3344, "y": 448, "width": 96, "height": 16, "rotation": 0, "visible": true,
+          "properties": [
+            { "name": "group", "type": "string", "value": "gallery-balance" },
+            { "name": "sign", "type": "int", "value": -1 },
+            { "name": "range", "type": "int", "value": 72 },
+            { "name": "speed", "type": "int", "value": 58 }
+          ]
+        },
+        {
+          "id": 45, "name": "New Moon Switch", "type": "GravitySwitch",
+          "x": 3504, "y": 480, "width": 32, "height": 48, "rotation": 0, "visible": true
+        },
+        {
+          "id": 46, "name": "Full Moon Switch", "type": "GravitySwitch",
+          "x": 3632, "y": 352, "width": 32, "height": 48, "rotation": 0, "visible": true
+        },
+        {
+          "id": 47, "name": "Lower Gallery Shop", "type": "ShopBlock",
+          "x": 3736, "y": 496, "width": 64, "height": 48, "rotation": 0, "visible": true,
+          "properties": [{ "name": "items", "type": "string", "value": "[{\"type\":\"muffin\",\"price\":100},{\"type\":\"fire\",\"price\":250},{\"type\":\"star\",\"price\":400},{\"type\":\"heal\",\"price\":150}]" }]
+        },
+        {
+          "id": 48, "name": "Mirror Step A", "type": "MirrorGate",
+          "x": 3840, "y": 496, "width": 32, "height": 48, "rotation": 0, "visible": true,
+          "properties": [{ "name": "channel", "type": "string", "value": "gallery-mirror" }]
+        },
+        {
+          "id": 49, "name": "Mirror Step B", "type": "MirrorGate",
+          "x": 3936, "y": 496, "width": 32, "height": 48, "rotation": 0, "visible": true,
+          "properties": [{ "name": "channel", "type": "string", "value": "gallery-mirror" }]
+        },
+        {
+          "id": 50, "name": "Lower Gallery Story", "type": "StoryTrigger",
+          "x": 3072, "y": 288, "width": 128, "height": 288, "rotation": 0, "visible": true,
+          "properties": [
+            { "name": "trigger", "type": "string", "value": "area" },
+            { "name": "once", "type": "bool", "value": true },
+            { "name": "freezePlayer", "type": "bool", "value": true },
+            { "name": "dialogue", "type": "string", "value": "[{\"speaker\":\"SYSTEM\",\"text\":\"The route now descends. The camera follows both axes.\",\"anchor\":\"trigger\",\"cameraMode\":\"coordinate\",\"cameraX\":3264,\"cameraY\":432,\"cameraDuration\":0.9},{\"speaker\":\"KAGUYA\",\"text\":\"Linked lifts, moon phases, a shop, and mirror steps guard the final gate.\",\"anchor\":\"player\",\"cameraMode\":\"coordinate\",\"cameraX\":3712,\"cameraY\":432,\"cameraDuration\":1.1}]" }
+          ]
+        },
+        {
+          "id": 51, "name": "Shaft One Way A", "type": "OneWayPlatform",
+          "x": 3072, "y": 352, "width": 96, "height": 16, "rotation": 0, "visible": true
+        },
+        {
+          "id": 52, "name": "Shaft One Way B", "type": "OneWayPlatform",
+          "x": 3120, "y": 432, "width": 96, "height": 16, "rotation": 0, "visible": true
+        }
+      ],
+      "opacity": 1,
+      "type": "objectgroup",
+      "visible": true,
+      "x": 0,
+      "y": 0
+    }
+  ],
+  "nextlayerid": 2,
+  "nextobjectid": 53,
+  "orientation": "orthogonal",
+  "properties": [
+    { "name": "title", "type": "string", "value": "FULL SYSTEM TEST" },
+    { "name": "background", "type": "string", "value": "lunar" },
+    { "name": "enemySpeed", "type": "float", "value": 0.32 },
+    { "name": "startsPowered", "type": "bool", "value": true },
+    { "name": "timeLimit", "type": "int", "value": 300 },
+    { "name": "startingScore", "type": "int", "value": 500 }
+  ],
+  "renderorder": "right-down",
+  "tiledversion": "1.11.2",
+  "tileheight": 32,
+  "tilesets": [],
+  "tilewidth": 32,
+  "type": "map",
+  "version": "1.10",
+  "width": 128
+}

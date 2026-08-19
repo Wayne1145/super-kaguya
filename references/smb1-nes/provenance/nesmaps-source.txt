@@ -1,0 +1,14 @@
+Reference page:
+https://nesmaps.com/maps/SuperMarioBrothers/SuperMarioBrosWorld1-1Map.html
+
+Direct image downloaded on 2026-08-13:
+https://nesmaps.com/maps/SuperMarioBrothers/SuperMarioBrosMap1-1.png
+
+Page metadata at download time declared the image as 3584 x 480 pixels and
+credited "Map by Rick N. Bruns, Version 1.0 (c) 2008" inside the image.
+
+Local SHA-256:
+758cfc7f236f599c4d5d82c0647d356eaa0ecbf3d6087b361823d036867b4ac1
+
+This is a visual verification reference only. It is not offered under an open
+license and must not be treated as distributable production artwork.

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Super Kaguya</title>
+    <link rel="stylesheet" href="styles.css?v=20260816-1" />
+  </head>
+  <body>
+    <main class="game-shell">
+      <header class="status-bar" aria-label="Game status">
+        <div>
+          <span class="status-label">SUPER KAGUYA</span>
+          <span class="status-value" id="state">TITLE</span>
+        </div>
+        <div class="tools">
+          <button id="menu" type="button" title="Return to title" aria-label="Return to title" hidden>MENU</button>
+          <button id="settings" type="button" title="设置" aria-label="设置">设置</button>
+          <button id="reset" type="button" title="Reset" aria-label="Reset">&#8635;</button>
+        </div>
+      </header>
+
+      <div id="display-frame" class="display-frame is-crt">
+        <canvas id="game" width="512" height="288" aria-label="Super Kaguya game canvas" tabindex="0"></canvas>
+        <section id="start-screen" class="start-screen" aria-label="Game start screen">
+          <div class="start-copy">
+            <div class="start-title">SUPER<br />KAGUYA</div>
+            <div class="start-kicker">ESCAPE FROM THE MOON</div>
+          </div>
+          <div class="start-stage" aria-hidden="true">
+            <span class="moon moon-small"></span>
+            <span class="moon moon-large"></span>
+            <span class="start-skyline"></span>
+            <span class="start-player"><img src="assets/kaguya.png" alt="" /></span>
+          </div>
+          <div class="start-actions">
+            <button id="start-game" type="button" class="start-button"><span aria-hidden="true">&#9654;</span> START GAME</button>
+            <button id="open-editor" type="button" class="start-button"><span aria-hidden="true">&#9654;</span> CREATE COURSE</button>
+          </div>
+          <div id="start-message" class="start-message" role="status">ESCAPE FROM THE MOON</div>
+          <p class="start-disclaimer">本作是基于超级玛丽，按照《超时空辉夜姬》剧中出现的像素风格游戏进行的风格化改造产物，并不属于这其中任何一方，目前为早期开发预览版本，全部免费，开源公开，使用了AI进行辅助编写，做的不好，OOC致歉</p>
+        </section>
+        <section id="level-screen" class="overlay-panel" aria-label="关卡选择" hidden>
+          <div class="panel-heading"><h2>月都路线</h2><button id="level-back" type="button" class="panel-close" aria-label="返回">X</button></div>
+          <div class="level-tabs"><button type="button" class="tab-button is-active" data-tab="story">剧情关卡</button><button type="button" class="tab-button" data-tab="custom">自定义关卡</button></div>
+          <div id="story-levels" class="level-list"></div>
+          <div id="custom-levels" class="level-list" hidden></div>
+          <div class="panel-actions">
+            <label class="file-button">导入关卡<input id="import-map" type="file" accept="application/json,.json" /></label>
+            <button id="save-export" type="button" class="panel-button">导出存档</button>
+            <label class="file-button">导入存档<input id="save-import" type="file" accept="application/json,.json" /></label>
+          </div>
+          <p id="level-message" class="panel-message"></p>
+        </section>
+        <section id="complete-screen" class="overlay-panel complete-screen" aria-label="关卡完成" hidden>
+          <div class="panel-heading"><h2>COURSE CLEAR</h2></div>
+          <div id="complete-stats" class="complete-stats"></div>
+          <div class="panel-actions"><button id="complete-home" type="button" class="panel-button">RETURN TO TITLE</button><button id="complete-next" type="button" class="panel-button">NEXT COURSE</button></div>
+        </section>
+        <section id="pause-screen" class="overlay-panel pause-screen" aria-label="Game paused" hidden>
+          <div class="panel-heading"><h2>PAUSED</h2></div>
+          <div class="pause-actions"><button id="pause-resume" type="button" class="panel-button">RESUME</button><button id="pause-restart" type="button" class="panel-button">RESTART</button><button id="pause-home" type="button" class="panel-button">RETURN TO TITLE</button></div>
+        </section>
+        <section id="settings-screen" class="overlay-panel settings-screen" aria-label="设置" hidden>
+          <div class="panel-heading"><h2>设置</h2><button id="settings-close" type="button" class="panel-close" aria-label="关闭">X</button></div>
+          <div class="settings-list"><label class="settings-row"><span>电视扫描线</span><input id="settings-crt" type="checkbox" checked /><i></i></label><label class="settings-row"><span>调试信息</span><input id="settings-debug" type="checkbox" /><i></i></label></div>
+          <section class="keybinding-settings" aria-labelledby="keybinding-title">
+            <div class="settings-section-heading"><h3 id="keybinding-title">键位设置</h3><button id="keybindings-reset" type="button">恢复默认</button></div>
+            <div id="keybinding-list" class="keybinding-list"></div>
+          </section>
+          <p id="settings-message" class="panel-message" aria-live="polite">点击键位后，按下新的按键即可替换。</p>
+        </section>
+        <section id="editor-screen" class="editor-screen" aria-label="关卡编辑器" hidden>
+          <div class="panel-heading"><h2>月都关卡拼图</h2><button id="editor-close" type="button" class="panel-close" aria-label="关闭编辑器">X</button></div>
+          <div class="editor-layout">
+            <aside class="editor-sidebar">
+              <div id="editor-palette" class="editor-palette"></div>
+              <div class="editor-fields">
+                <label>关卡名称<input id="editor-name" value="自定义月都路线" maxlength="40" /></label>
+                <label>背景<select id="editor-background"><option value="lunar">古代月都</option><option value="dawn">桃色黎明</option><option value="night">深夜月面</option></select></label>
+                <label>角色素材路径<input id="editor-player-art" placeholder="assets/kaguya.png" /></label>
+                <label>敌人速度<input id="editor-enemy-speed" type="number" min="0" max="4" step="0.1" value="0.32" /></label>
+                <label>关卡长度（格）<input id="editor-columns" type="number" min="36" max="512" step="4" value="36" /></label>
+                <label>关卡高度（格）<input id="editor-rows" type="number" min="9" max="64" step="1" value="9" /></label>
+                <label>倒计时（秒，0 为不限时）<input id="editor-time-limit" type="number" min="0" max="7200" step="10" value="300" /></label>
+                <label>初始积分<input id="editor-start-score" type="number" min="0" max="999999" step="10" value="0" /></label>
+                <label class="editor-check"><input id="editor-start-big" type="checkbox" /><span>入场时已变大</span></label>
+                <label class="editor-check"><input id="editor-start-fire" type="checkbox" /><span>入场时可发射寿司弹</span></label>
+              </div>
+              <fieldset id="editor-warp-fields" class="editor-story-fields editor-warp-fields" hidden>
+                <legend>月井传送设置</legend>
+                <label>通道名称<input id="editor-warp-channel" value="moon-well-a" maxlength="48" /></label>
+                <label>进入方向<select id="editor-warp-direction"><option value="down">向下</option><option value="up">向上</option><option value="left">向左</option><option value="right">向右</option></select></label>
+                <label class="editor-check"><input id="editor-warp-input" type="checkbox" checked /><span>需要按方向键触发</span></label>
+                <p class="story-field-hint">相同通道名称的月井按顺序相连。选中工具后放置两个或更多入口。</p>
+              </fieldset>
+              <fieldset id="editor-object-fields" class="editor-story-fields editor-object-fields" hidden>
+                <legend>组件属性</legend>
+                <div id="editor-object-form" class="editor-object-form"></div>
+              </fieldset>
+              <fieldset id="editor-story-fields" class="editor-story-fields" hidden>
+                <legend>剧情事件</legend>
+                <label>触发方式<select id="editor-story-trigger"><option value="area">进入区域</option><option value="start">关卡开场</option></select></label>
+                <label id="editor-story-width-row">触发区域宽度（格）<input id="editor-story-width" type="number" min="1" max="12" step="1" value="3" /></label>
+                <label class="editor-check"><input id="editor-story-once" type="checkbox" checked /><span>仅触发一次</span></label>
+                <label class="editor-check"><input id="editor-story-freeze" type="checkbox" checked /><span>剧情时暂停场景</span></label>
+                <div class="story-steps-heading"><span>对话与镜头步骤</span><button id="editor-story-add" type="button">+ 步骤</button></div>
+                <div id="editor-story-steps" class="story-step-list"></div>
+                <p class="story-field-hint">每一步可指定说话对象和镜头。把剧情组件放到画面后，再次点击它可继续编辑。</p>
+              </fieldset>
+            </aside>
+            <div class="editor-workspace">
+              <div class="editor-viewport-toolbar">
+                <div class="editor-scroll-buttons">
+                  <button id="editor-scroll-start" type="button" title="移动到关卡开头" aria-label="移动到关卡开头">|&lt;</button>
+                  <button id="editor-scroll-prev" type="button" title="向前翻一页" aria-label="向前翻一页">&lt;</button>
+                  <button id="editor-scroll-next" type="button" title="向后翻一页" aria-label="向后翻一页">&gt;</button>
+                  <button id="editor-scroll-end" type="button" title="移动到关卡末尾" aria-label="移动到关卡末尾">&gt;|</button>
+                  <button id="editor-add-page" type="button" title="在末尾增加一页" aria-label="增加一页">+ PAGE</button>
+                  <button id="editor-remove-page" type="button" title="从末尾减少一页" aria-label="减少一页">- PAGE</button>
+                </div>
+                <output id="editor-scroll-position">1-36 / 36</output>
+              </div>
+              <div id="editor-scroll-area" class="editor-scroll-area"><canvas id="editor-grid" class="editor-grid" width="1152" height="288" role="application" aria-label="关卡拼图网格"></canvas></div>
+              <div class="editor-help">画面即试玩结果。选择组件后点击或拖动摆放，右键擦除。</div>
+              <p id="editor-message" class="editor-message" aria-live="polite"></p>
+            </div>
+          </div>
+          <div class="panel-actions"><button id="editor-new" type="button" class="panel-button">新建</button><button id="editor-export" type="button" class="panel-button">导出 JSON</button><button id="editor-play" type="button" class="panel-button">试玩</button></div>
+        </section>
+        <section id="death-screen" class="death-screen" aria-label="Game over" hidden>
+          <div class="death-title">MOONLIGHT<br />FADES</div>
+          <div class="death-subtitle">KAGUYA FALLS</div>
+          <div class="death-actions">
+            <button id="death-restart" type="button" class="death-button">RESTART COURSE</button>
+            <button id="death-menu" type="button" class="death-button">RETURN TO TITLE</button>
+          </div>
+        </section>
+        <section id="shop-screen" class="overlay-panel shop-screen" aria-label="Moon shop" hidden>
+          <div class="panel-heading"><h2>MOON SHOP</h2><button id="shop-close" type="button" class="panel-close" aria-label="Close shop">X</button></div>
+          <div class="shop-balance">SCORE <b id="shop-score">000000</b></div>
+          <div id="shop-items" class="shop-items"></div>
+          <p id="shop-message" class="panel-message">CHOOSE A GIFT FOR THE ROAD</p>
+        </section>
+      </div>
+
+      <section id="hud-tester" class="hud-tester" aria-label="HUD test controls" hidden>
+        <div class="hud-control">
+          <span>HP</span>
+          <button type="button" data-hud="health" data-change="-10" aria-label="Decrease health">-</button>
+          <output id="health-value">100 / 100</output>
+          <button type="button" data-hud="health" data-change="10" aria-label="Increase health">+</button>
+        </div>
+        <div class="hud-control">
+          <span>SCORE</span>
+          <button type="button" data-hud="score" data-change="-100" aria-label="Decrease score">-</button>
+          <output id="score-value">000000</output>
+          <button type="button" data-hud="score" data-change="100" aria-label="Increase score">+</button>
+        </div>
+      </section>
+
+      <div class="controls" aria-label="Touch controls">
+        <div class="direction-pad">
+          <button data-control="left" type="button" aria-label="Move left">&#8592;</button>
+          <button data-control="down" type="button" aria-label="Crouch">&#8595;</button>
+          <button data-control="right" type="button" aria-label="Move right">&#8594;</button>
+        </div>
+        <div class="action-pad">
+          <button class="fire-button" data-control="fire" type="button" aria-label="Fire">FIRE</button>
+          <button class="interact-button" data-control="interact" type="button" aria-label="Interact">E</button>
+          <button class="jump-button" data-control="up" type="button" aria-label="Jump">&#8593;</button>
+        </div>
+      </div>
+    </main>
+
+    <script src="game.js?v=20260816-1"></script>
+  </body>
+</html>

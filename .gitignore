@@ -1,0 +1,8 @@
+# Local reference/licensed packs are intentionally kept out of a public source tree.
+assets/food/source/
+references/mario-original/images/
+references/smb1-nes/images/
+references/smb1-nes/provenance/pgattic-smb1-disasm/*.chr
+
+# Local development output.
+.dev-server.*.log

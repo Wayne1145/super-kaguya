@@ -1,0 +1,4107 @@
+{
+  "compressionlevel": -1,
+  "height": 9,
+  "infinite": false,
+  "layers": [
+    {
+      "draworder": "topdown",
+      "id": 1,
+      "name": "Collision",
+      "objects": [
+        {
+          "id": 2,
+          "name": "Ground 1",
+          "type": "Solid",
+          "x": 0,
+          "y": 232,
+          "width": 2208,
+          "height": 56,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 0
+            },
+            {
+              "name": "sourceLengthTiles",
+              "type": "int",
+              "value": 69
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "name": "Ground 2",
+          "type": "Solid",
+          "x": 2272,
+          "y": 232,
+          "width": 480,
+          "height": 56,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 71
+            },
+            {
+              "name": "sourceLengthTiles",
+              "type": "int",
+              "value": 15
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "name": "Ground 3",
+          "type": "Solid",
+          "x": 2848,
+          "y": 232,
+          "width": 2048,
+          "height": 56,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 89
+            },
+            {
+              "name": "sourceLengthTiles",
+              "type": "int",
+              "value": 64
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "name": "Ground 4",
+          "type": "Solid",
+          "x": 4960,
+          "y": 232,
+          "width": 2208,
+          "height": 56,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 155
+            },
+            {
+              "name": "sourceLengthTiles",
+              "type": "int",
+              "value": 69
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 9,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 640,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 20
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 10,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 704,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 22
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 11,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 768,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 24
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 12,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 2464,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 77
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 13,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 2528,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 79
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 14,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 2560,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 80
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 15,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 2592,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 81
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 16,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 2624,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 82
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 17,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 2656,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 83
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 18,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 2688,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 84
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 19,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 2720,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 85
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 20,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 2752,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 86
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 21,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 2784,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 87
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 22,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 2912,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 91
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 23,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 2944,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 92
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 24,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 2976,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 93
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 25,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 3008,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 94
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 26,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 3200,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 100
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 27,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 3232,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 101
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 28,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 3776,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 118
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 29,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 3872,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 121
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 30,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 3904,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 122
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 31,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 3936,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 123
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 32,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 4096,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 128
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 33,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 4192,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 131
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 34,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 4128,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 129
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 35,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 4160,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 130
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 36,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 5376,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 168
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 37,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 5408,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 169
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 38,
+          "name": "Brick",
+          "type": "BrickBlock",
+          "x": 5472,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 171
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 39,
+          "name": "Question",
+          "type": "QuestionBlock",
+          "x": 512,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "contents",
+              "type": "string",
+              "value": "food"
+            },
+            {
+              "name": "score",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 16
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 40,
+          "name": "Question",
+          "type": "QuestionBlock",
+          "x": 704,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "contents",
+              "type": "string",
+              "value": "food"
+            },
+            {
+              "name": "score",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 22
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 41,
+          "name": "Question",
+          "type": "QuestionBlock",
+          "x": 672,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "contents",
+              "type": "string",
+              "value": "food"
+            },
+            {
+              "name": "score",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 21
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 42,
+          "name": "Question",
+          "type": "QuestionBlock",
+          "x": 736,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "contents",
+              "type": "string",
+              "value": "food"
+            },
+            {
+              "name": "score",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 23
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 43,
+          "name": "Question",
+          "type": "QuestionBlock",
+          "x": 2496,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "contents",
+              "type": "string",
+              "value": "food"
+            },
+            {
+              "name": "score",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 78
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 44,
+          "name": "Question",
+          "type": "QuestionBlock",
+          "x": 3008,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "contents",
+              "type": "string",
+              "value": "food"
+            },
+            {
+              "name": "score",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 94
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 45,
+          "name": "Question",
+          "type": "QuestionBlock",
+          "x": 3392,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "contents",
+              "type": "string",
+              "value": "food"
+            },
+            {
+              "name": "score",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 106
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 46,
+          "name": "Question",
+          "type": "QuestionBlock",
+          "x": 3488,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "contents",
+              "type": "string",
+              "value": "food"
+            },
+            {
+              "name": "score",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 109
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 47,
+          "name": "Question",
+          "type": "QuestionBlock",
+          "x": 3488,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "contents",
+              "type": "string",
+              "value": "food"
+            },
+            {
+              "name": "score",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 109
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 48,
+          "name": "Question",
+          "type": "QuestionBlock",
+          "x": 3584,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "contents",
+              "type": "string",
+              "value": "food"
+            },
+            {
+              "name": "score",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 112
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 49,
+          "name": "Question",
+          "type": "QuestionBlock",
+          "x": 4128,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "contents",
+              "type": "string",
+              "value": "food"
+            },
+            {
+              "name": "score",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 129
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 50,
+          "name": "Question",
+          "type": "QuestionBlock",
+          "x": 4160,
+          "y": 72,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "contents",
+              "type": "string",
+              "value": "food"
+            },
+            {
+              "name": "score",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 130
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 51,
+          "name": "Question",
+          "type": "QuestionBlock",
+          "x": 5440,
+          "y": 136,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "contents",
+              "type": "string",
+              "value": "food"
+            },
+            {
+              "name": "score",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 170
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 54,
+          "name": "Pipe Collision 1",
+          "type": "Solid",
+          "x": 896,
+          "y": 184,
+          "width": 64,
+          "height": 48,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 28
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 11
+            },
+            {
+              "name": "sourceHeightTiles",
+              "type": "int",
+              "value": 2
+            },
+            {
+              "name": "destination",
+              "type": "string",
+              "value": "none"
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 56,
+          "name": "Pipe Collision 2",
+          "type": "Solid",
+          "x": 1216,
+          "y": 160,
+          "width": 64,
+          "height": 72,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 38
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "sourceHeightTiles",
+              "type": "int",
+              "value": 3
+            },
+            {
+              "name": "destination",
+              "type": "string",
+              "value": "none"
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 58,
+          "name": "Pipe Collision 3",
+          "type": "Solid",
+          "x": 1472,
+          "y": 136,
+          "width": 64,
+          "height": 96,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 46
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 9
+            },
+            {
+              "name": "sourceHeightTiles",
+              "type": "int",
+              "value": 4
+            },
+            {
+              "name": "destination",
+              "type": "string",
+              "value": "none"
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 60,
+          "name": "Pipe Collision 4",
+          "type": "Solid",
+          "x": 1824,
+          "y": 136,
+          "width": 64,
+          "height": 96,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 57
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 9
+            },
+            {
+              "name": "sourceHeightTiles",
+              "type": "int",
+              "value": 4
+            },
+            {
+              "name": "destination",
+              "type": "string",
+              "value": "bonus-room"
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 62,
+          "name": "Pipe Collision 5",
+          "type": "Solid",
+          "x": 5216,
+          "y": 184,
+          "width": 64,
+          "height": 48,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 163
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 11
+            },
+            {
+              "name": "sourceHeightTiles",
+              "type": "int",
+              "value": 2
+            },
+            {
+              "name": "destination",
+              "type": "string",
+              "value": "overworld"
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 64,
+          "name": "Pipe Collision 6",
+          "type": "Solid",
+          "x": 5728,
+          "y": 184,
+          "width": 64,
+          "height": 48,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 179
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 11
+            },
+            {
+              "name": "sourceHeightTiles",
+              "type": "int",
+              "value": 2
+            },
+            {
+              "name": "destination",
+              "type": "string",
+              "value": "none"
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 66,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 4288,
+          "y": 208,
+          "width": 32,
+          "height": 24,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 134
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 12
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 68,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 4320,
+          "y": 184,
+          "width": 32,
+          "height": 48,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 135
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 11
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 70,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 4352,
+          "y": 160,
+          "width": 32,
+          "height": 72,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 136
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 72,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 4384,
+          "y": 136,
+          "width": 32,
+          "height": 96,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 137
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 9
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 74,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 4480,
+          "y": 136,
+          "width": 32,
+          "height": 96,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 140
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 9
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 76,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 4512,
+          "y": 160,
+          "width": 32,
+          "height": 72,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 141
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 78,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 4544,
+          "y": 184,
+          "width": 32,
+          "height": 48,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 142
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 11
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 80,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 4576,
+          "y": 208,
+          "width": 32,
+          "height": 24,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 143
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 12
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 82,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 4736,
+          "y": 208,
+          "width": 32,
+          "height": 24,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 148
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 12
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 84,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 4768,
+          "y": 184,
+          "width": 32,
+          "height": 48,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 149
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 11
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 86,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 4800,
+          "y": 160,
+          "width": 32,
+          "height": 72,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 150
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 88,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 4832,
+          "y": 136,
+          "width": 32,
+          "height": 96,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 151
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 9
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 90,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 4864,
+          "y": 136,
+          "width": 32,
+          "height": 96,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 152
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 9
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 92,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 4960,
+          "y": 136,
+          "width": 32,
+          "height": 96,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 155
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 9
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 94,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 4992,
+          "y": 160,
+          "width": 32,
+          "height": 72,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 156
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 96,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 5024,
+          "y": 184,
+          "width": 32,
+          "height": 48,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 157
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 11
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 98,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 5056,
+          "y": 208,
+          "width": 32,
+          "height": 24,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 158
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 12
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 100,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 5792,
+          "y": 208,
+          "width": 32,
+          "height": 24,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 181
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 12
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 102,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 5824,
+          "y": 184,
+          "width": 32,
+          "height": 48,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 182
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 11
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 104,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 5856,
+          "y": 160,
+          "width": 32,
+          "height": 72,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 183
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 106,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 5888,
+          "y": 136,
+          "width": 32,
+          "height": 96,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 184
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 9
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 108,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 5920,
+          "y": 120,
+          "width": 32,
+          "height": 112,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 185
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 8
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 110,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 5952,
+          "y": 104,
+          "width": 32,
+          "height": 128,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 186
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 7
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 112,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 5984,
+          "y": 88,
+          "width": 32,
+          "height": 144,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 187
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 6
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 114,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 6016,
+          "y": 72,
+          "width": 32,
+          "height": 160,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 188
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 5
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 116,
+          "name": "Stair Collision",
+          "type": "Solid",
+          "x": 6048,
+          "y": 72,
+          "width": 32,
+          "height": 160,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 189
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 5
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        },
+        {
+          "id": 118,
+          "name": "Flag Base Collision",
+          "type": "Solid",
+          "x": 6336,
+          "y": 208,
+          "width": 32,
+          "height": 24,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 198
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 12
+            },
+            {
+              "name": "visual",
+              "type": "bool",
+              "value": false
+            }
+          ]
+        }
+      ],
+      "opacity": 1,
+      "type": "objectgroup",
+      "visible": true,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "draworder": "topdown",
+      "id": 2,
+      "name": "Classic Visual Metadata",
+      "objects": [
+        {
+          "id": 1,
+          "name": "Ground Segment 1",
+          "type": "GroundSegment",
+          "x": 0,
+          "y": 232,
+          "width": 2208,
+          "height": 56,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 0
+            },
+            {
+              "name": "sourceLengthTiles",
+              "type": "int",
+              "value": 69
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "name": "Ground Segment 2",
+          "type": "GroundSegment",
+          "x": 2272,
+          "y": 232,
+          "width": 480,
+          "height": 56,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 71
+            },
+            {
+              "name": "sourceLengthTiles",
+              "type": "int",
+              "value": 15
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "name": "Ground Segment 3",
+          "type": "GroundSegment",
+          "x": 2848,
+          "y": 232,
+          "width": 2048,
+          "height": 56,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 89
+            },
+            {
+              "name": "sourceLengthTiles",
+              "type": "int",
+              "value": 64
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "name": "Ground Segment 4",
+          "type": "GroundSegment",
+          "x": 4960,
+          "y": 232,
+          "width": 2208,
+          "height": 56,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 155
+            },
+            {
+              "name": "sourceLengthTiles",
+              "type": "int",
+              "value": 69
+            }
+          ]
+        },
+        {
+          "id": 52,
+          "name": "Hidden 1UP",
+          "type": "QuestionBlock",
+          "x": 2048,
+          "y": 120,
+          "width": 32,
+          "height": 32,
+          "rotation": 0,
+          "visible": false,
+          "properties": [
+            {
+              "name": "contents",
+              "type": "string",
+              "value": "food"
+            },
+            {
+              "name": "originalContents",
+              "type": "string",
+              "value": "1up-mushroom"
+            },
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 64
+            },
+            {
+              "name": "sourceRow",
+              "type": "int",
+              "value": 8
+            }
+          ]
+        },
+        {
+          "id": 53,
+          "name": "Pipe 1",
+          "type": "Pipe",
+          "x": 896,
+          "y": 184,
+          "width": 64,
+          "height": 48,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 28
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 11
+            },
+            {
+              "name": "sourceHeightTiles",
+              "type": "int",
+              "value": 2
+            },
+            {
+              "name": "destination",
+              "type": "string",
+              "value": "none"
+            }
+          ]
+        },
+        {
+          "id": 55,
+          "name": "Pipe 2",
+          "type": "Pipe",
+          "x": 1216,
+          "y": 160,
+          "width": 64,
+          "height": 72,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 38
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 10
+            },
+            {
+              "name": "sourceHeightTiles",
+              "type": "int",
+              "value": 3
+            },
+            {
+              "name": "destination",
+              "type": "string",
+              "value": "none"
+            }
+          ]
+        },
+        {
+          "id": 57,
+          "name": "Pipe 3",
+          "type": "Pipe",
+          "x": 1472,
+          "y": 136,
+          "width": 64,
+          "height": 96,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 46
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 9
+            },
+            {
+              "name": "sourceHeightTiles",
+              "type": "int",
+              "value": 4
+            },
+            {
+              "name": "destination",
+              "type": "string",
+              "value": "none"
+            }
+          ]
+        },
+        {
+          "id": 59,
+          "name": "Pipe 4",
+          "type": "Pipe",
+          "x": 1824,
+          "y": 136,
+          "width": 64,
+          "height": 96,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 57
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 9
+            },
+            {
+              "name": "sourceHeightTiles",
+              "type": "int",
+              "value": 4
+            },
+            {
+              "name": "destination",
+              "type": "string",
+              "value": "bonus-room"
+            }
+          ]
+        },
+        {
+          "id": 61,
+          "name": "Pipe 5",
+          "type": "Pipe",
+          "x": 5216,
+          "y": 184,
+          "width": 64,
+          "height": 48,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 163
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 11
+            },
+            {
+              "name": "sourceHeightTiles",
+              "type": "int",
+              "value": 2
+            },
+            {
+              "name": "destination",
+              "type": "string",
+              "value": "overworld"
+            }
+          ]
+        },
+        {
+          "id": 63,
+          "name": "Pipe 6",
+          "type": "Pipe",
+          "x": 5728,
+          "y": 184,
+          "width": 64,
+          "height": 48,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 179
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 11
+            },
+            {
+              "name": "sourceHeightTiles",
+              "type": "int",
+              "value": 2
+            },
+            {
+              "name": "destination",
+              "type": "string",
+              "value": "none"
+            }
+          ]
+        },
+        {
+          "id": 65,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 4288,
+          "y": 208,
+          "width": 32,
+          "height": 24,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 134
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 12
+            }
+          ]
+        },
+        {
+          "id": 67,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 4320,
+          "y": 184,
+          "width": 32,
+          "height": 48,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 135
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 11
+            }
+          ]
+        },
+        {
+          "id": 69,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 4352,
+          "y": 160,
+          "width": 32,
+          "height": 72,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 136
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "id": 71,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 4384,
+          "y": 136,
+          "width": 32,
+          "height": 96,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 137
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 73,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 4480,
+          "y": 136,
+          "width": 32,
+          "height": 96,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 140
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 75,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 4512,
+          "y": 160,
+          "width": 32,
+          "height": 72,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 141
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "id": 77,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 4544,
+          "y": 184,
+          "width": 32,
+          "height": 48,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 142
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 11
+            }
+          ]
+        },
+        {
+          "id": 79,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 4576,
+          "y": 208,
+          "width": 32,
+          "height": 24,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 143
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 12
+            }
+          ]
+        },
+        {
+          "id": 81,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 4736,
+          "y": 208,
+          "width": 32,
+          "height": 24,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 148
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 12
+            }
+          ]
+        },
+        {
+          "id": 83,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 4768,
+          "y": 184,
+          "width": 32,
+          "height": 48,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 149
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 11
+            }
+          ]
+        },
+        {
+          "id": 85,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 4800,
+          "y": 160,
+          "width": 32,
+          "height": 72,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 150
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "id": 87,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 4832,
+          "y": 136,
+          "width": 32,
+          "height": 96,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 151
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 89,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 4864,
+          "y": 136,
+          "width": 32,
+          "height": 96,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 152
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 91,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 4960,
+          "y": 136,
+          "width": 32,
+          "height": 96,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 155
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 93,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 4992,
+          "y": 160,
+          "width": 32,
+          "height": 72,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 156
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "id": 95,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 5024,
+          "y": 184,
+          "width": 32,
+          "height": 48,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 157
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 11
+            }
+          ]
+        },
+        {
+          "id": 97,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 5056,
+          "y": 208,
+          "width": 32,
+          "height": 24,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 158
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 12
+            }
+          ]
+        },
+        {
+          "id": 99,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 5792,
+          "y": 208,
+          "width": 32,
+          "height": 24,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 181
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 12
+            }
+          ]
+        },
+        {
+          "id": 101,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 5824,
+          "y": 184,
+          "width": 32,
+          "height": 48,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 182
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 11
+            }
+          ]
+        },
+        {
+          "id": 103,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 5856,
+          "y": 160,
+          "width": 32,
+          "height": 72,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 183
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 10
+            }
+          ]
+        },
+        {
+          "id": 105,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 5888,
+          "y": 136,
+          "width": 32,
+          "height": 96,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 184
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "id": 107,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 5920,
+          "y": 120,
+          "width": 32,
+          "height": 112,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 185
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 8
+            }
+          ]
+        },
+        {
+          "id": 109,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 5952,
+          "y": 104,
+          "width": 32,
+          "height": 128,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 186
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 7
+            }
+          ]
+        },
+        {
+          "id": 111,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 5984,
+          "y": 88,
+          "width": 32,
+          "height": 144,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 187
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 6
+            }
+          ]
+        },
+        {
+          "id": 113,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 6016,
+          "y": 72,
+          "width": 32,
+          "height": 160,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 188
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 115,
+          "name": "Hard Block",
+          "type": "HardBlock",
+          "x": 6048,
+          "y": 72,
+          "width": 32,
+          "height": 160,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 189
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 5
+            }
+          ]
+        },
+        {
+          "id": 117,
+          "name": "Flag Base",
+          "type": "HardBlock",
+          "x": 6336,
+          "y": 208,
+          "width": 32,
+          "height": 24,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 198
+            },
+            {
+              "name": "sourceTopRow",
+              "type": "int",
+              "value": 12
+            }
+          ]
+        },
+        {
+          "id": 119,
+          "name": "World 1-1 Flagpole",
+          "type": "FlagPole",
+          "x": 6336,
+          "y": 24,
+          "width": 32,
+          "height": 208,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 198
+            }
+          ]
+        },
+        {
+          "id": 120,
+          "name": "Small Castle",
+          "type": "CastleDecoration",
+          "x": 6464,
+          "y": 120,
+          "width": 160,
+          "height": 112,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceXTile",
+              "type": "int",
+              "value": 202
+            }
+          ]
+        }
+      ],
+      "opacity": 1,
+      "type": "objectgroup",
+      "visible": true,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "draworder": "topdown",
+      "id": 3,
+      "name": "Entities",
+      "objects": [
+        {
+          "id": 121,
+          "name": "Player",
+          "type": "PlayerSpawn",
+          "point": true,
+          "x": 80,
+          "y": 232,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 40
+            },
+            {
+              "name": "coordinateMeaning",
+              "type": "string",
+              "value": "feet-center"
+            }
+          ]
+        },
+        {
+          "id": 122,
+          "name": "Enemy 1",
+          "type": "Enemy",
+          "point": true,
+          "x": 720,
+          "y": 232,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "direction",
+              "type": "int",
+              "value": -1
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "value": "random"
+            },
+            {
+              "name": "health",
+              "type": "int",
+              "value": 1
+            },
+            {
+              "name": "originalKind",
+              "type": "string",
+              "value": "goomba-brown"
+            },
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 352
+            },
+            {
+              "name": "sourceY",
+              "type": "int",
+              "value": 192
+            },
+            {
+              "name": "sourceAnchor",
+              "type": "string",
+              "value": "top-left"
+            }
+          ]
+        },
+        {
+          "id": 123,
+          "name": "Enemy 2",
+          "type": "Enemy",
+          "point": true,
+          "x": 1296,
+          "y": 232,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "direction",
+              "type": "int",
+              "value": -1
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "value": "random"
+            },
+            {
+              "name": "health",
+              "type": "int",
+              "value": 1
+            },
+            {
+              "name": "originalKind",
+              "type": "string",
+              "value": "goomba-brown"
+            },
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 640
+            },
+            {
+              "name": "sourceY",
+              "type": "int",
+              "value": 192
+            },
+            {
+              "name": "sourceAnchor",
+              "type": "string",
+              "value": "top-left"
+            }
+          ]
+        },
+        {
+          "id": 124,
+          "name": "Enemy 3",
+          "type": "Enemy",
+          "point": true,
+          "x": 1648,
+          "y": 232,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "direction",
+              "type": "int",
+              "value": -1
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "value": "random"
+            },
+            {
+              "name": "health",
+              "type": "int",
+              "value": 1
+            },
+            {
+              "name": "originalKind",
+              "type": "string",
+              "value": "goomba-brown"
+            },
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 816
+            },
+            {
+              "name": "sourceY",
+              "type": "int",
+              "value": 192
+            },
+            {
+              "name": "sourceAnchor",
+              "type": "string",
+              "value": "top-left"
+            }
+          ]
+        },
+        {
+          "id": 125,
+          "name": "Enemy 4",
+          "type": "Enemy",
+          "point": true,
+          "x": 1696,
+          "y": 232,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "direction",
+              "type": "int",
+              "value": -1
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "value": "random"
+            },
+            {
+              "name": "health",
+              "type": "int",
+              "value": 1
+            },
+            {
+              "name": "originalKind",
+              "type": "string",
+              "value": "goomba-brown"
+            },
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 840
+            },
+            {
+              "name": "sourceY",
+              "type": "int",
+              "value": 192
+            },
+            {
+              "name": "sourceAnchor",
+              "type": "string",
+              "value": "top-left"
+            }
+          ]
+        },
+        {
+          "id": 126,
+          "name": "Enemy 5",
+          "type": "Enemy",
+          "point": true,
+          "x": 2576,
+          "y": 72,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "direction",
+              "type": "int",
+              "value": -1
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "value": "random"
+            },
+            {
+              "name": "health",
+              "type": "int",
+              "value": 1
+            },
+            {
+              "name": "originalKind",
+              "type": "string",
+              "value": "goomba-brown"
+            },
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 1280
+            },
+            {
+              "name": "sourceY",
+              "type": "int",
+              "value": 64
+            },
+            {
+              "name": "sourceAnchor",
+              "type": "string",
+              "value": "top-left"
+            }
+          ]
+        },
+        {
+          "id": 127,
+          "name": "Enemy 6",
+          "type": "Enemy",
+          "point": true,
+          "x": 2640,
+          "y": 72,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "direction",
+              "type": "int",
+              "value": -1
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "value": "random"
+            },
+            {
+              "name": "health",
+              "type": "int",
+              "value": 1
+            },
+            {
+              "name": "originalKind",
+              "type": "string",
+              "value": "goomba-brown"
+            },
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 1312
+            },
+            {
+              "name": "sourceY",
+              "type": "int",
+              "value": 64
+            },
+            {
+              "name": "sourceAnchor",
+              "type": "string",
+              "value": "top-left"
+            }
+          ]
+        },
+        {
+          "id": 128,
+          "name": "Enemy 7",
+          "type": "Enemy",
+          "point": true,
+          "x": 3120,
+          "y": 232,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "direction",
+              "type": "int",
+              "value": -1
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "value": "random"
+            },
+            {
+              "name": "health",
+              "type": "int",
+              "value": 1
+            },
+            {
+              "name": "originalKind",
+              "type": "string",
+              "value": "goomba-brown"
+            },
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 1552
+            },
+            {
+              "name": "sourceY",
+              "type": "int",
+              "value": 192
+            },
+            {
+              "name": "sourceAnchor",
+              "type": "string",
+              "value": "top-left"
+            }
+          ]
+        },
+        {
+          "id": 129,
+          "name": "Enemy 8",
+          "type": "Enemy",
+          "point": true,
+          "x": 3168,
+          "y": 232,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "direction",
+              "type": "int",
+              "value": -1
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "value": "random"
+            },
+            {
+              "name": "health",
+              "type": "int",
+              "value": 1
+            },
+            {
+              "name": "originalKind",
+              "type": "string",
+              "value": "goomba-brown"
+            },
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 1576
+            },
+            {
+              "name": "sourceY",
+              "type": "int",
+              "value": 192
+            },
+            {
+              "name": "sourceAnchor",
+              "type": "string",
+              "value": "top-left"
+            }
+          ]
+        },
+        {
+          "id": 130,
+          "name": "Enemy 9",
+          "type": "Enemy",
+          "point": true,
+          "x": 3440,
+          "y": 232,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "direction",
+              "type": "int",
+              "value": -1
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "value": "random"
+            },
+            {
+              "name": "health",
+              "type": "int",
+              "value": 1
+            },
+            {
+              "name": "originalKind",
+              "type": "string",
+              "value": "koopa-green"
+            },
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 1712
+            },
+            {
+              "name": "sourceY",
+              "type": "int",
+              "value": 185
+            },
+            {
+              "name": "sourceAnchor",
+              "type": "string",
+              "value": "top-left"
+            }
+          ]
+        },
+        {
+          "id": 131,
+          "name": "Enemy 10",
+          "type": "Enemy",
+          "point": true,
+          "x": 3664,
+          "y": 232,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "direction",
+              "type": "int",
+              "value": -1
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "value": "random"
+            },
+            {
+              "name": "health",
+              "type": "int",
+              "value": 1
+            },
+            {
+              "name": "originalKind",
+              "type": "string",
+              "value": "goomba-brown"
+            },
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 1824
+            },
+            {
+              "name": "sourceY",
+              "type": "int",
+              "value": 192
+            },
+            {
+              "name": "sourceAnchor",
+              "type": "string",
+              "value": "top-left"
+            }
+          ]
+        },
+        {
+          "id": 132,
+          "name": "Enemy 11",
+          "type": "Enemy",
+          "point": true,
+          "x": 3712,
+          "y": 232,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "direction",
+              "type": "int",
+              "value": -1
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "value": "random"
+            },
+            {
+              "name": "health",
+              "type": "int",
+              "value": 1
+            },
+            {
+              "name": "originalKind",
+              "type": "string",
+              "value": "goomba-brown"
+            },
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 1848
+            },
+            {
+              "name": "sourceY",
+              "type": "int",
+              "value": 192
+            },
+            {
+              "name": "sourceAnchor",
+              "type": "string",
+              "value": "top-left"
+            }
+          ]
+        },
+        {
+          "id": 133,
+          "name": "Enemy 12",
+          "type": "Enemy",
+          "point": true,
+          "x": 3984,
+          "y": 232,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "direction",
+              "type": "int",
+              "value": -1
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "value": "random"
+            },
+            {
+              "name": "health",
+              "type": "int",
+              "value": 1
+            },
+            {
+              "name": "originalKind",
+              "type": "string",
+              "value": "goomba-brown"
+            },
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 1984
+            },
+            {
+              "name": "sourceY",
+              "type": "int",
+              "value": 192
+            },
+            {
+              "name": "sourceAnchor",
+              "type": "string",
+              "value": "top-left"
+            }
+          ]
+        },
+        {
+          "id": 134,
+          "name": "Enemy 13",
+          "type": "Enemy",
+          "point": true,
+          "x": 4032,
+          "y": 232,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "direction",
+              "type": "int",
+              "value": -1
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "value": "random"
+            },
+            {
+              "name": "health",
+              "type": "int",
+              "value": 1
+            },
+            {
+              "name": "originalKind",
+              "type": "string",
+              "value": "goomba-brown"
+            },
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 2008
+            },
+            {
+              "name": "sourceY",
+              "type": "int",
+              "value": 192
+            },
+            {
+              "name": "sourceAnchor",
+              "type": "string",
+              "value": "top-left"
+            }
+          ]
+        },
+        {
+          "id": 135,
+          "name": "Enemy 14",
+          "type": "Enemy",
+          "point": true,
+          "x": 4112,
+          "y": 232,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "direction",
+              "type": "int",
+              "value": -1
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "value": "random"
+            },
+            {
+              "name": "health",
+              "type": "int",
+              "value": 1
+            },
+            {
+              "name": "originalKind",
+              "type": "string",
+              "value": "goomba-brown"
+            },
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 2048
+            },
+            {
+              "name": "sourceY",
+              "type": "int",
+              "value": 192
+            },
+            {
+              "name": "sourceAnchor",
+              "type": "string",
+              "value": "top-left"
+            }
+          ]
+        },
+        {
+          "id": 136,
+          "name": "Enemy 15",
+          "type": "Enemy",
+          "point": true,
+          "x": 4160,
+          "y": 232,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "direction",
+              "type": "int",
+              "value": -1
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "value": "random"
+            },
+            {
+              "name": "health",
+              "type": "int",
+              "value": 1
+            },
+            {
+              "name": "originalKind",
+              "type": "string",
+              "value": "goomba-brown"
+            },
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 2072
+            },
+            {
+              "name": "sourceY",
+              "type": "int",
+              "value": 192
+            },
+            {
+              "name": "sourceAnchor",
+              "type": "string",
+              "value": "top-left"
+            }
+          ]
+        },
+        {
+          "id": 137,
+          "name": "Enemy 16",
+          "type": "Enemy",
+          "point": true,
+          "x": 5584,
+          "y": 232,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "direction",
+              "type": "int",
+              "value": -1
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "value": "random"
+            },
+            {
+              "name": "health",
+              "type": "int",
+              "value": 1
+            },
+            {
+              "name": "originalKind",
+              "type": "string",
+              "value": "goomba-brown"
+            },
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 2784
+            },
+            {
+              "name": "sourceY",
+              "type": "int",
+              "value": 192
+            },
+            {
+              "name": "sourceAnchor",
+              "type": "string",
+              "value": "top-left"
+            }
+          ]
+        },
+        {
+          "id": 138,
+          "name": "Enemy 17",
+          "type": "Enemy",
+          "point": true,
+          "x": 5632,
+          "y": 232,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            {
+              "name": "direction",
+              "type": "int",
+              "value": -1
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "value": "random"
+            },
+            {
+              "name": "health",
+              "type": "int",
+              "value": 1
+            },
+            {
+              "name": "originalKind",
+              "type": "string",
+              "value": "goomba-brown"
+            },
+            {
+              "name": "sourceX",
+              "type": "int",
+              "value": 2808
+            },
+            {
+              "name": "sourceY",
+              "type": "int",
+              "value": 192
+            },
+            {
+              "name": "sourceAnchor",
+              "type": "string",
+              "value": "top-left"
+            }
+          ]
+        }
+      ],
+      "opacity": 1,
+      "type": "objectgroup",
+      "visible": true,
+      "x": 0,
+      "y": 0
+    }
+  ],
+  "nextlayerid": 4,
+  "nextobjectid": 139,
+  "orientation": "orthogonal",
+  "properties": [
+    {
+      "name": "referenceLevel",
+      "type": "string",
+      "value": "Super Mario Bros. (NES) World 1-1"
+    },
+    {
+      "name": "sourceGridWidth",
+      "type": "int",
+      "value": 212
+    },
+    {
+      "name": "sourceTileSize",
+      "type": "int",
+      "value": 16
+    },
+    {
+      "name": "horizontalScale",
+      "type": "float",
+      "value": 2
+    },
+    {
+      "name": "verticalMapping",
+      "type": "string",
+      "value": "row13=232,row9=136,row5=72"
+    },
+    {
+      "name": "blockVerticalOffset",
+      "type": "int",
+      "value": 16
+    },
+    {
+      "name": "bonusRoomIncluded",
+      "type": "bool",
+      "value": false
+    }
+  ],
+  "renderorder": "right-down",
+  "tiledversion": "1.11.2",
+  "tileheight": 32,
+  "tilesets": [],
+  "tilewidth": 32,
+  "type": "map",
+  "version": "1.10",
+  "width": 224
+}
