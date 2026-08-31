@@ -7,6 +7,12 @@ supplied by the project owner and identifies Kyukei (`Kyukei_dot`) as its
 creator. The supplied terms allow game use and modification but prohibit
 redistribution or resale of the raw source assets. It remains Git-ignored.
 
+Renaming, compressing, Base64-encoding, encrypting or placing those images in a
+custom client-side archive does not make redistribution non-redistribution: a
+browser must be able to recover the pixels. The repository therefore keeps the
+source pack local and uses a programmatic fallback in clones until written
+permission or a permissively licensed replacement pack is available.
+
 If it is included in a private build, retain `assets/food/README.md` plus the
 two supplied source readmes and credit `Kyukei_dot` where practical.
 

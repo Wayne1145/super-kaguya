@@ -14,24 +14,26 @@ axes; imported Tiled maps may be larger within the runtime validation limits.
 | `BrickBlock` | 32 x 32 rectangle | `breakable`, `contents`, `hits`, `score` | Optional repeated item drops, then underside destruction by big Kaguya |
 | `QuestionBlock` | 32 x 32 rectangle | `contents`, `hits`, `score` | `food`, `mushroom`, `star`, or empty; supports repeat hits |
 | `FoodPickup` | Point; `y` is the surface | `score` | Authored sushi pickup |
+| `KeyPickup` | Point/rectangle; `y` is the surface | none | Fixed moon key whose unique Tiled object ID can unlock multiple gates |
 | `Enemy` | Point; `y` is foot position | `direction`, `variant`, `health`, `patrolRange` | Independently identified patrol enemy with optional spawn-centered range |
 | `Boss` | Point; `y` is foot position | `name`, `health`, `direction`, `speed`, `patrolRange`, `jumpInterval`, `shotInterval`, `phaseCount`, `score` | 1-4 combat phases, projectiles, top health bar and damage numbers |
 | `MovingPlatform` | Rectangle | `axis`, `range`, `speed`, `phase` | Carries entities horizontally or vertically |
 | `LinkedPlatform` | Rectangle | `group`, `sign`, `range`, `speed` | Counterweight lift; platforms sharing a group move in opposing signed directions |
 | `OneWayPlatform` | Rectangle | none | Collides only while landing from above |
 | `FallingPlatform` | Rectangle | `delay`, `respawn` | Shakes, falls and safely respawns |
-| `WarpGate` | Rectangle | `channel`, `direction`, `requiresInput`, `targetId` | Moon-well transit paired by target or channel |
-| `MirrorGate` | Rectangle | `channel`, `targetId` | Touch-triggered short-range portal with loop-prevention cooldown |
+| `WarpGate` | Rectangle | `channel`, `direction`, `requiresInput`, `targetId`, `bidirectional`, lock properties | Moon-well transit paired by exact target or legacy channel |
+| `MirrorGate` | Rectangle | `channel`, `targetId`, `bidirectional`, lock properties | Touch-triggered short-range portal with loop-prevention cooldown |
 | `GravitySwitch` | Rectangle | none | `E` interaction toggles gravity and upside-down player orientation |
 | `ShopBlock` | Rectangle | `items` | `E` interaction opens a score shop; inventory is declarative JSON |
-| `AreaRegion` | Rectangle | `name`, `background`, `transition` | Two-axis camera region; `smooth` follows continuously and `edge` switches at region boundaries |
-| `LowGravityZone` | Rectangle | `gravityScale`, `impulse`, `drag` | Particle-filled moon-dust flotation field |
+| `AreaRegion` | Rectangle | `name`, `background`, `transition` | Non-solid camera/background metadata; `smooth` follows continuously and `edge` switches at region boundaries |
+| `LowGravityZone` | Rectangle | `gravityScale`, `jumpScale`, `impulse`, `drag` | Moon-dust field with separate fall gravity and jump-height tuning |
+| `Barrier` | Rectangle | none | Invisible solid; rendered only in the editor and Debug |
 | `LunarRift` | Rectangle | `damage`, `interval` | Moon-eclipse hazard used instead of lava |
-| `Checkpoint` | Rectangle | none | Lantern checkpoint; awards 50 points and becomes the restart location |
+| `Checkpoint` | Rectangle | none | Lantern checkpoint; snapshots position, collected keys and defeated lock targets |
 | `StoryTrigger` | Rectangle | See [Story triggers](#story-triggers) | Starts declarative dialogue and camera cues at level start or when the player enters a region |
 | `HardBlock` | Rectangle | none | Indestructible lunar masonry decoration |
 | `Pipe` | Rectangle | none | Lunar-gate decoration; pair with `Solid` for collision |
-| `MoonPortal` | Rectangle | `behavior`, `requiresBoss` | Completion portal; may stay locked while a boss lives |
+| `MoonPortal` | Rectangle | `behavior` plus lock properties | Completion portal with the shared objective/key lock system |
 
 Unknown object types are ignored, which lets a map carry editor-only metadata
 without crashing the game.
@@ -43,6 +45,8 @@ The following optional top-level properties are declarative and safe to share:
 | Property | Type | Purpose |
 | --- | --- | --- |
 | `title` | string | Custom-course title |
+| `author` | string | Community author name, limited to 40 characters by the built-in editor |
+| `description` | string | Short course description, limited to 240 characters by the built-in editor |
 | `background` | string | Theme hint: `lunar`, `dawn`, or `night` |
 | `characterArt` | string | Relative/hosted image URL reserved for custom character art |
 | `enemySpeed` | number | Patrol-speed multiplier reserved for community tuning |
@@ -51,6 +55,57 @@ The following optional top-level properties are declarative and safe to share:
 | `startsFire` | boolean | Start large with fire/sushi-shot ability |
 | `timeLimit` | number | Countdown seconds; 0 disables it. Pause, settings, frozen story and transit stop time |
 | `startingScore` | number | Initial shop currency/score, clamped to 0-999999 |
+| `autoPortal` | boolean | When false, do not create a fallback completion portal if the map has no `MoonPortal` |
+| `workshopDependencies` | JSON string | Exact package IDs/lockfile entries required before the course may start |
+
+For either gate type, `targetId` is the Tiled object ID of another gate of the
+same type. An invalid or self-referencing ID remains visibly unlinked instead of
+falling back to a channel. With `bidirectional=true`, the runtime gives the
+destination a return link only when that destination has no explicit target and
+has not already been claimed by another return route. Use one-way sources when
+several entrances share one destination. Maps without `targetId` retain the
+legacy behavior of linking gates with the same `channel` in object order.
+
+## Gate locks and keys
+
+`WarpGate`, `MirrorGate`, and `MoonPortal` accept the same properties:
+
+| Property | Type | Purpose |
+| --- | --- | --- |
+| `lockEnabled` | boolean | Enable objective checking; old maps infer this when requirements exist |
+| `requiredEnemyIds` | JSON array or CSV | Exact `Enemy`/`Boss` IDs that must be defeated |
+| `requiredKeyIds` | JSON array or CSV | Exact fixed `KeyPickup` IDs that must be collected |
+| `unlockRequirements` | JSON array | Extensible `{ "type": "defeat"|"key", "targetId": 37 }` entries |
+| `requiresBoss` | boolean | Backward-compatible shortcut requiring all Boss objects |
+| `unlockText` | string | Optional player-facing explanation shown below the generated requirement list (160 characters maximum) |
+
+All requirements use AND semantics. Multiple entrances may point to one target,
+and each entrance keeps its own lock. Missing or malformed targets fail closed
+and appear in Debug. Fatal damage marks an enemy objective as defeated
+immediately; checkpoints snapshot completed IDs and collected keys so respawning
+after a puzzle cannot make the level impossible.
+
+Locked gates render a translucent shield. Every required key contributes a dim
+crescent that lights when collected; enemy progress appears as `TARGET n/N`.
+
+```json
+[
+  { "name": "lockEnabled", "type": "bool", "value": true },
+  { "name": "requiredEnemyIds", "type": "string", "value": "[37]" },
+  { "name": "requiredKeyIds", "type": "string", "value": "[53,54,55]" },
+  { "name": "unlockText", "type": "string", "value": "Find the three Moon Keys, then defeat the gatekeeper." },
+  {
+    "name": "unlockRequirements",
+    "type": "string",
+    "value": "[{\"type\":\"defeat\",\"targetId\":37},{\"type\":\"key\",\"targetId\":53}]"
+  }
+]
+```
+
+`AreaRegion` never enters collision geometry. It selects background and camera
+bounds only. Use `Barrier` when a real invisible wall is intended. Adjacent
+regions should meet or overlap; gaps fall back to world camera bounds instead
+of retaining a stale region.
 
 `ShopBlock.items` is a JSON array containing at most eight products. Supported
 types are `muffin`, `fire`, `star`, and `heal`; each entry has a non-negative
@@ -168,6 +223,5 @@ on export. Its inspector configures block drops and hit counts, platform size
 and motion, enemy ranges, bosses, warps, areas, hazards, entry abilities and
 story cameras. Use Tiled for pixel-exact rectangles and bulk object editing.
 
-`smb1-1-1.json` is an adapted first-route reference map. Its original end
-staircase, flag and castle are replaced at runtime with the Moon Portal so the
-completion flow stays in the Kaguya setting.
+The repository ships only `all-mechanics-test.json`. It is an original systems
+lab, not an imported Mario route, and demonstrates every supported component.

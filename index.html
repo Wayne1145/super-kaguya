@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Super Kaguya</title>
-    <link rel="stylesheet" href="styles.css?v=20260816-1" />
+    <meta name="description" content="Super Kaguya is an open-source pixel platformer and course editor inspired by a lunar escape story." />
+    <link rel="stylesheet" href="styles.css?v=20260831-1" />
   </head>
   <body>
     <main class="game-shell">
@@ -15,6 +16,7 @@
         </div>
         <div class="tools">
           <button id="menu" type="button" title="Return to title" aria-label="Return to title" hidden>MENU</button>
+          <button id="return-editor" type="button" title="返回编辑器" aria-label="返回编辑器" hidden>编辑</button>
           <button id="settings" type="button" title="设置" aria-label="设置">设置</button>
           <button id="reset" type="button" title="Reset" aria-label="Reset">&#8635;</button>
         </div>
@@ -22,7 +24,11 @@
 
       <div id="display-frame" class="display-frame is-crt">
         <canvas id="game" width="512" height="288" aria-label="Super Kaguya game canvas" tabindex="0"></canvas>
+        <div id="screen-transition" class="screen-transition" aria-hidden="true"></div>
         <section id="start-screen" class="start-screen" aria-label="Game start screen">
+          <button id="music-toggle" type="button" class="music-toggle" aria-label="关闭标题音乐" aria-pressed="true" title="Title music">
+            <canvas id="music-pixel-icon" width="24" height="20" aria-hidden="true"></canvas>
+          </button>
           <div class="start-copy">
             <div class="start-title">SUPER<br />KAGUYA</div>
             <div class="start-kicker">ESCAPE FROM THE MOON</div>
@@ -36,9 +42,11 @@
           <div class="start-actions">
             <button id="start-game" type="button" class="start-button"><span aria-hidden="true">&#9654;</span> START GAME</button>
             <button id="open-editor" type="button" class="start-button"><span aria-hidden="true">&#9654;</span> CREATE COURSE</button>
+            <button id="open-workshop" type="button" class="start-button"><span aria-hidden="true">&#9638;</span> COMMUNITY WORKSHOP</button>
           </div>
           <div id="start-message" class="start-message" role="status">ESCAPE FROM THE MOON</div>
           <p class="start-disclaimer">本作是基于超级玛丽，按照《超时空辉夜姬》剧中出现的像素风格游戏进行的风格化改造产物，并不属于这其中任何一方，目前为早期开发预览版本，全部免费，开源公开，使用了AI进行辅助编写，做的不好，OOC致歉</p>
+          <a id="github-link" class="github-link" href="https://github.com/Wayne1145/super-kaguya" target="_blank" rel="noreferrer" aria-label="在 GitHub 查看 Super Kaguya" title="GitHub"><img src="assets/ui/github-pixel-black.png" alt="" aria-hidden="true" /></a>
         </section>
         <section id="level-screen" class="overlay-panel" aria-label="关卡选择" hidden>
           <div class="panel-heading"><h2>月都路线</h2><button id="level-back" type="button" class="panel-close" aria-label="返回">X</button></div>
@@ -63,11 +71,21 @@
         </section>
         <section id="settings-screen" class="overlay-panel settings-screen" aria-label="设置" hidden>
           <div class="panel-heading"><h2>设置</h2><button id="settings-close" type="button" class="panel-close" aria-label="关闭">X</button></div>
-          <div class="settings-list"><label class="settings-row"><span>电视扫描线</span><input id="settings-crt" type="checkbox" checked /><i></i></label><label class="settings-row"><span>调试信息</span><input id="settings-debug" type="checkbox" /><i></i></label></div>
-          <section class="keybinding-settings" aria-labelledby="keybinding-title">
-            <div class="settings-section-heading"><h3 id="keybinding-title">键位设置</h3><button id="keybindings-reset" type="button">恢复默认</button></div>
-            <div id="keybinding-list" class="keybinding-list"></div>
-          </section>
+          <div class="settings-tabs" role="tablist"><button type="button" class="is-active" data-settings-page="controls" role="tab" aria-selected="true">控制</button><button type="button" data-settings-page="audio" role="tab" aria-selected="false">音量</button></div>
+          <div class="settings-page" data-settings-panel="controls">
+            <div class="settings-list"><label class="settings-row"><span>电视扫描线</span><input id="settings-crt" type="checkbox" checked /><i></i></label><label class="settings-row"><span>调试信息</span><input id="settings-debug" type="checkbox" /><i></i></label></div>
+            <section class="keybinding-settings" aria-labelledby="keybinding-title">
+              <div class="settings-section-heading"><h3 id="keybinding-title">键位设置</h3><button id="keybindings-reset" type="button">恢复默认</button></div>
+              <div id="keybinding-list" class="keybinding-list"></div>
+            </section>
+          </div>
+          <div class="settings-page audio-settings" data-settings-panel="audio" hidden>
+            <label class="volume-row"><span>背景音乐</span><input id="volume-music" type="range" min="0" max="100" step="1" value="70" /><output for="volume-music">70%</output></label>
+            <label class="volume-row"><span>角色音效</span><input id="volume-player" type="range" min="0" max="100" step="1" value="85" /><output for="volume-player">85%</output></label>
+            <label class="volume-row"><span>怪物音效</span><input id="volume-enemy" type="range" min="0" max="100" step="1" value="80" /><output for="volume-enemy">80%</output></label>
+            <label class="volume-row"><span>关卡音效</span><input id="volume-level" type="range" min="0" max="100" step="1" value="80" /><output for="volume-level">80%</output></label>
+            <p class="audio-empty">当前预览版尚未内置音乐文件。音频总线、分类音量与静音状态会保存在本机。</p>
+          </div>
           <p id="settings-message" class="panel-message" aria-live="polite">点击键位后，按下新的按键即可替换。</p>
         </section>
         <section id="editor-screen" class="editor-screen" aria-label="关卡编辑器" hidden>
@@ -77,6 +95,8 @@
               <div id="editor-palette" class="editor-palette"></div>
               <div class="editor-fields">
                 <label>关卡名称<input id="editor-name" value="自定义月都路线" maxlength="40" /></label>
+                <label>作者<input id="editor-author" value="" maxlength="40" placeholder="匿名创作者" /></label>
+                <label>关卡描述<textarea id="editor-description" maxlength="240" rows="3" placeholder="简短介绍这条路线"></textarea></label>
                 <label>背景<select id="editor-background"><option value="lunar">古代月都</option><option value="dawn">桃色黎明</option><option value="night">深夜月面</option></select></label>
                 <label>角色素材路径<input id="editor-player-art" placeholder="assets/kaguya.png" /></label>
                 <label>敌人速度<input id="editor-enemy-speed" type="number" min="0" max="4" step="0.1" value="0.32" /></label>
@@ -122,11 +142,12 @@
                 <output id="editor-scroll-position">1-36 / 36</output>
               </div>
               <div id="editor-scroll-area" class="editor-scroll-area"><canvas id="editor-grid" class="editor-grid" width="1152" height="288" role="application" aria-label="关卡拼图网格"></canvas></div>
+              <section id="editor-tutorial" class="editor-tutorial" aria-live="polite"><strong>地面</strong><p>实体地形。角色、敌人和道具都会与它碰撞。</p></section>
               <div class="editor-help">画面即试玩结果。选择组件后点击或拖动摆放，右键擦除。</div>
               <p id="editor-message" class="editor-message" aria-live="polite"></p>
             </div>
           </div>
-          <div class="panel-actions"><button id="editor-new" type="button" class="panel-button">新建</button><button id="editor-export" type="button" class="panel-button">导出 JSON</button><button id="editor-play" type="button" class="panel-button">试玩</button></div>
+          <div class="panel-actions"><button id="editor-new" type="button" class="panel-button">新建</button><button id="editor-save-custom" type="button" class="panel-button">保存到自定义关卡</button><button id="editor-export" type="button" class="panel-button">导出 JSON</button><button id="editor-play" type="button" class="panel-button">试玩</button></div>
         </section>
         <section id="death-screen" class="death-screen" aria-label="Game over" hidden>
           <div class="death-title">MOONLIGHT<br />FADES</div>
@@ -137,10 +158,37 @@
           </div>
         </section>
         <section id="shop-screen" class="overlay-panel shop-screen" aria-label="Moon shop" hidden>
-          <div class="panel-heading"><h2>MOON SHOP</h2><button id="shop-close" type="button" class="panel-close" aria-label="Close shop">X</button></div>
-          <div class="shop-balance">SCORE <b id="shop-score">000000</b></div>
+          <div class="panel-heading shop-heading"><div><h2>MOON SHOP</h2><small>月都补给站</small></div><button id="shop-close" type="button" class="panel-close" aria-label="关闭商店">X</button></div>
+          <div class="shop-balance"><span>可用积分</span><b id="shop-score">000000</b><small>选择一件旅途补给</small></div>
           <div id="shop-items" class="shop-items"></div>
-          <p id="shop-message" class="panel-message">CHOOSE A GIFT FOR THE ROAD</p>
+          <p id="shop-message" class="panel-message">靠近商店方块并按交互键，可随时再次打开。</p>
+        </section>
+        <section id="workshop-screen" class="overlay-panel workshop-screen" aria-label="社区工坊" hidden>
+          <div class="panel-heading workshop-heading"><div><h2>社区工坊</h2><small>COMMUNITY WORKSHOP</small></div><button id="workshop-close" type="button" class="panel-close" aria-label="关闭工坊">X</button></div>
+          <div class="workshop-toolbar">
+            <div class="workshop-tabs" role="tablist">
+              <button type="button" class="is-active" data-workshop-type="all">全部</button><button type="button" data-workshop-type="map">关卡</button><button type="button" data-workshop-type="item">物品</button><button type="button" data-workshop-type="mechanic">机制</button><button type="button" data-workshop-type="asset">素材</button><button type="button" data-workshop-type="music">音乐</button>
+            </div>
+            <button id="workshop-refresh" type="button" class="workshop-refresh" aria-label="刷新工坊目录" title="刷新工坊目录">&#8635;</button>
+          </div>
+          <div class="workshop-body">
+            <div id="workshop-list" class="workshop-list"></div>
+            <article id="workshop-detail" class="workshop-detail" hidden>
+              <header class="workshop-detail-heading">
+                <button id="workshop-detail-back" type="button" aria-label="返回工坊目录" title="返回工坊目录">&#8592;</button>
+                <div><small id="workshop-detail-kicker"></small><h3 id="workshop-detail-title"></h3></div>
+                <b id="workshop-detail-version"></b>
+              </header>
+              <div class="workshop-detail-scroll">
+                <section class="workshop-intro"><p id="workshop-detail-summary"></p><dl id="workshop-detail-meta"></dl><div id="workshop-detail-tags" class="workshop-tags"></div></section>
+                <section><h4>安装文件</h4><div id="workshop-detail-files" class="workshop-file-list"></div></section>
+                <section><h4>依赖内容</h4><div id="workshop-detail-dependencies" class="workshop-dependency-list"></div></section>
+              </div>
+              <footer><button id="workshop-detail-install" type="button">安装此内容</button><span id="workshop-detail-status"></span></footer>
+            </article>
+            <aside id="workshop-install" class="workshop-install" hidden><header><strong id="workshop-install-title"></strong><button id="workshop-install-cancel" type="button" aria-label="取消安装">X</button></header><p id="workshop-install-detail"></p><div id="workshop-dependencies"></div><div class="workshop-install-actions"><button id="workshop-install-confirm" type="button">确认安装</button></div></aside>
+          </div>
+          <p id="workshop-message" class="panel-message" aria-live="polite">仅安装经过校验的声明式内容包，不执行远程 JavaScript。</p>
         </section>
       </div>
 
@@ -173,6 +221,7 @@
       </div>
     </main>
 
-    <script src="game.js?v=20260816-1"></script>
+    <script src="config.js?v=20260831-1"></script>
+    <script src="game.js?v=20260831-1"></script>
   </body>
 </html>

@@ -1,0 +1,328 @@
+{
+  "schemaVersion": 1,
+  "revision": "demo-2026-08-30.1",
+  "packages": [
+    {
+      "id": "io.super-kaguya.core.lunar-dsl",
+      "type": "mechanic",
+      "title": "Lunar Declarative Core",
+      "summary": "Shared, data-only component vocabulary used by the workshop demo packages.",
+      "author": "Super Kaguya Team",
+      "license": "MIT",
+      "tags": ["core", "dsl", "editor"],
+      "featured": true,
+      "downloads": 128,
+      "createdAt": "2026-08-20T08:00:00.000Z",
+      "updatedAt": "2026-08-30T08:00:00.000Z",
+      "versions": [
+        {
+          "version": "1.1.0",
+          "engine": "^0.8.0",
+          "license": "MIT",
+          "publishedAt": "2026-08-30T08:00:00.000Z",
+          "dependencies": [],
+          "conflicts": [],
+          "capabilities": ["entity.component", "event.trigger", "editor.palette"],
+          "content": {
+            "kind": "component-library",
+            "schemaVersion": 1,
+            "components": {
+              "counter": {
+                "properties": {
+                  "initial": { "type": "number" },
+                  "maximum": { "type": "number" }
+                }
+              },
+              "event-link": {
+                "properties": {
+                  "event": { "type": "string" },
+                  "targetId": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "version": "1.0.0",
+          "engine": "^0.8.0",
+          "license": "MIT",
+          "publishedAt": "2026-08-20T08:00:00.000Z",
+          "dependencies": [],
+          "conflicts": [],
+          "capabilities": ["entity.component", "editor.palette"],
+          "content": {
+            "kind": "component-library",
+            "schemaVersion": 1,
+            "components": {
+              "counter": {
+                "properties": {
+                  "initial": { "type": "number" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "io.super-kaguya.assets.moon-icons",
+      "type": "asset",
+      "title": "Moon Icon Descriptor Pack",
+      "summary": "A metadata-only demo pack describing crescent and lock-shield editor icons.",
+      "author": "Super Kaguya Team",
+      "license": "CC0-1.0",
+      "tags": ["moon", "icons", "lock"],
+      "featured": false,
+      "downloads": 84,
+      "createdAt": "2026-08-25T09:00:00.000Z",
+      "updatedAt": "2026-08-25T09:00:00.000Z",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "engine": "^0.8.0",
+          "license": "CC0-1.0",
+          "publishedAt": "2026-08-25T09:00:00.000Z",
+          "dependencies": [],
+          "conflicts": [],
+          "capabilities": ["render.sprite", "editor.palette"],
+          "content": {
+            "kind": "asset-descriptors",
+            "schemaVersion": 1,
+            "assets": [
+              {
+                "id": "moon-crescent-dim",
+                "source": "builtin:procedural/crescent",
+                "tint": "#6e6680"
+              },
+              {
+                "id": "moon-crescent-lit",
+                "source": "builtin:procedural/crescent",
+                "tint": "#fff2a8"
+              },
+              {
+                "id": "lunar-lock-shield",
+                "source": "builtin:procedural/shield",
+                "tint": "#9fe9ff"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "io.super-kaguya.items.moon-key",
+      "type": "item",
+      "title": "Moon Key",
+      "summary": "Fixed-position key pickup with a stable object ID for multi-step lock puzzles.",
+      "author": "Super Kaguya Team",
+      "license": "MIT",
+      "tags": ["key", "puzzle", "pickup"],
+      "featured": true,
+      "downloads": 96,
+      "createdAt": "2026-08-26T09:00:00.000Z",
+      "updatedAt": "2026-08-30T09:00:00.000Z",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "engine": "^0.8.0",
+          "license": "MIT",
+          "publishedAt": "2026-08-30T09:00:00.000Z",
+          "dependencies": [
+            {
+              "id": "io.super-kaguya.core.lunar-dsl",
+              "range": "^1.0.0",
+              "kind": "required"
+            },
+            {
+              "id": "io.super-kaguya.assets.moon-icons",
+              "range": "^1.0.0",
+              "kind": "optional"
+            }
+          ],
+          "conflicts": [],
+          "capabilities": ["entity.item", "event.collect", "editor.palette"],
+          "content": {
+            "kind": "item-definition",
+            "schemaVersion": 1,
+            "item": {
+              "id": "moon-key",
+              "placement": "fixed",
+              "identity": "map-object-id",
+              "collectEvent": "key.collected",
+              "editor": {
+                "category": "puzzle",
+                "label": "月之钥匙"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "io.super-kaguya.mechanics.locked-gate",
+      "type": "mechanic",
+      "title": "Declarative Locked Gate",
+      "summary": "Lock requirements for keys and defeated entity IDs, expressed without executable scripts.",
+      "author": "Super Kaguya Team",
+      "license": "MIT",
+      "tags": ["gate", "boss", "key", "puzzle"],
+      "featured": true,
+      "downloads": 104,
+      "createdAt": "2026-08-27T09:00:00.000Z",
+      "updatedAt": "2026-08-30T09:30:00.000Z",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "engine": "^0.8.0",
+          "license": "MIT",
+          "publishedAt": "2026-08-30T09:30:00.000Z",
+          "dependencies": [
+            {
+              "id": "io.super-kaguya.core.lunar-dsl",
+              "range": "^1.1.0",
+              "kind": "required"
+            },
+            {
+              "id": "io.super-kaguya.items.moon-key",
+              "range": "^1.0.0",
+              "kind": "required"
+            },
+            {
+              "id": "io.super-kaguya.assets.moon-icons",
+              "range": "^1.0.0",
+              "kind": "optional"
+            }
+          ],
+          "conflicts": [],
+          "capabilities": ["entity.component", "event.trigger", "render.overlay", "editor.inspector"],
+          "content": {
+            "kind": "mechanic-definition",
+            "schemaVersion": 1,
+            "mechanic": {
+              "id": "locked-gate",
+              "attachTo": ["completion-gate", "warp-gate", "mirror-gate"],
+              "properties": {
+                "requiredEnemyIds": { "type": "array", "items": { "type": "string" } },
+                "requiredKeyIds": { "type": "array", "items": { "type": "string" } }
+              },
+              "events": {
+                "unlock": {
+                  "when": "all-requirements-satisfied"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "io.super-kaguya.music.silent-preview",
+      "type": "music",
+      "title": "Silent Audio Preview",
+      "summary": "A deliberately silent metadata package used to test category and volume UI without redistributing music.",
+      "author": "Super Kaguya Team",
+      "license": "CC0-1.0",
+      "tags": ["audio", "placeholder", "silent"],
+      "featured": false,
+      "downloads": 12,
+      "createdAt": "2026-08-28T09:00:00.000Z",
+      "updatedAt": "2026-08-28T09:00:00.000Z",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "engine": "^0.8.0",
+          "license": "CC0-1.0",
+          "publishedAt": "2026-08-28T09:00:00.000Z",
+          "dependencies": [],
+          "conflicts": [],
+          "capabilities": ["audio.track-metadata"],
+          "content": {
+            "kind": "music-pack",
+            "schemaVersion": 1,
+            "tracks": [],
+            "notice": "This demo package intentionally contains no audio payload."
+          }
+        }
+      ]
+    },
+    {
+      "id": "io.super-kaguya.maps.lock-gravity-lab",
+      "type": "map",
+      "title": "Lock and Gravity Lab",
+      "summary": "A tiny declarative course fragment that exercises keys, a locked gate, and a low-gravity region.",
+      "author": "Super Kaguya Team",
+      "license": "MIT",
+      "tags": ["test", "map", "gravity", "lock"],
+      "featured": true,
+      "downloads": 41,
+      "createdAt": "2026-08-30T10:00:00.000Z",
+      "updatedAt": "2026-08-30T10:00:00.000Z",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "engine": "^0.8.0",
+          "license": "MIT",
+          "publishedAt": "2026-08-30T10:00:00.000Z",
+          "dependencies": [
+            {
+              "id": "io.super-kaguya.mechanics.locked-gate",
+              "range": "^1.0.0",
+              "kind": "required"
+            },
+            {
+              "id": "io.super-kaguya.assets.moon-icons",
+              "range": "^1.0.0",
+              "kind": "optional"
+            },
+            {
+              "id": "io.super-kaguya.music.silent-preview",
+              "range": "^1.0.0",
+              "kind": "optional"
+            }
+          ],
+          "conflicts": [],
+          "capabilities": ["map.course", "map.region", "story.dialogue"],
+          "content": {
+            "kind": "map-fragment",
+            "schemaVersion": 1,
+            "metadata": {
+              "title": "月锁与低重力实验室",
+              "author": "Super Kaguya Team"
+            },
+            "objects": [
+              {
+                "id": "key-a",
+                "type": "moon-key",
+                "x": 192,
+                "y": 384
+              },
+              {
+                "id": "gravity-a",
+                "type": "low-gravity-region",
+                "x": 320,
+                "y": 128,
+                "width": 320,
+                "height": 320,
+                "gravityMultiplier": 0.35,
+                "jumpMultiplier": 1.6
+              },
+              {
+                "id": "gate-a",
+                "type": "completion-gate",
+                "x": 768,
+                "y": 320,
+                "components": [
+                  {
+                    "type": "locked-gate",
+                    "requiredKeyIds": ["key-a"],
+                    "requiredEnemyIds": []
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

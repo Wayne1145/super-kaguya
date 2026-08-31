@@ -1,0 +1,646 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Super Kaguya Community Workshop Demo API",
+    "version": "0.1.0",
+    "description": "Read-only seed catalog, content-addressed blobs, dependency resolution, and an in-memory report demonstration. Community packages are declarative JSON and never executable JavaScript."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:55125",
+      "description": "Default local demo"
+    }
+  ],
+  "tags": [
+    { "name": "service" },
+    { "name": "catalog" },
+    { "name": "resolution" },
+    { "name": "moderation" }
+  ],
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": ["service"],
+        "operationId": "getHealth",
+        "summary": "Check service and seed catalog availability",
+        "responses": {
+          "200": {
+            "description": "Service is ready",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Health" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/openapi.json": {
+      "get": {
+        "tags": ["service"],
+        "operationId": "getOpenApi",
+        "summary": "Return this OpenAPI document",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1 document",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/categories": {
+      "get": {
+        "tags": ["catalog"],
+        "operationId": "listCategories",
+        "summary": "List package type counts",
+        "responses": {
+          "200": {
+            "description": "Category counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["items"],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Category" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/packages": {
+      "get": {
+        "tags": ["catalog"],
+        "operationId": "searchPackages",
+        "summary": "Search and paginate catalog packages",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/PackageType" }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": { "type": "string", "maxLength": 100 }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "schema": { "type": "string", "maxLength": 50 }
+          },
+          {
+            "name": "engine",
+            "in": "query",
+            "description": "Complete engine SemVer, for example 0.8.0.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque cursor returned by the preceding page.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Package page",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PackagePage" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/api/v1/packages/{packageId}": {
+      "get": {
+        "tags": ["catalog"],
+        "operationId": "getPackage",
+        "summary": "Get one package and all version summaries",
+        "parameters": [
+          { "$ref": "#/components/parameters/PackageId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Package detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PackageDetail" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/api/v1/packages/{packageId}/versions": {
+      "get": {
+        "tags": ["catalog"],
+        "operationId": "listPackageVersions",
+        "summary": "List immutable versions of one package",
+        "parameters": [
+          { "$ref": "#/components/parameters/PackageId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Version summaries, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["packageId", "items"],
+                  "properties": {
+                    "packageId": { "type": "string" },
+                    "items": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/VersionSummary" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/api/v1/versions/{versionId}/manifest": {
+      "get": {
+        "tags": ["catalog"],
+        "operationId": "getVersionManifest",
+        "summary": "Get an immutable package manifest",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "example": "io.super-kaguya.items.moon-key@1.0.0"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Immutable manifest; validate the ETag digest against a lockfile when installing.",
+            "headers": {
+              "ETag": { "schema": { "type": "string" } }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Manifest" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/api/v1/blobs/{sha256}": {
+      "get": {
+        "tags": ["catalog"],
+        "operationId": "getBlob",
+        "summary": "Download one immutable content-addressed file",
+        "parameters": [
+          { "$ref": "#/components/parameters/Sha256" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Blob bytes. The demo seed blobs are declarative JSON.",
+            "headers": {
+              "ETag": { "schema": { "type": "string" } }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          },
+          "304": { "description": "Client already has the immutable blob" },
+          "400": { "$ref": "#/components/responses/Problem" },
+          "404": { "$ref": "#/components/responses/Problem" }
+        }
+      },
+      "head": {
+        "tags": ["catalog"],
+        "operationId": "headBlob",
+        "summary": "Check immutable blob metadata without downloading it",
+        "parameters": [
+          { "$ref": "#/components/parameters/Sha256" }
+        ],
+        "responses": {
+          "200": { "description": "Blob exists" },
+          "404": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/api/v1/resolve": {
+      "post": {
+        "tags": ["resolution"],
+        "operationId": "resolveDependencies",
+        "summary": "Resolve root requirements into exact immutable package versions",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ResolveRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resolution result. Domain failures use ok=false, while malformed HTTP requests use problem+json.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResolveResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Problem" },
+          "413": { "$ref": "#/components/responses/Problem" },
+          "415": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/api/v1/reports": {
+      "post": {
+        "tags": ["moderation"],
+        "operationId": "createDemoReport",
+        "summary": "Create a non-durable demonstration report",
+        "description": "The demo retains at most 100 reports in memory and loses them on restart. A production service must authenticate, rate-limit, persist, and audit this endpoint.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ReportRequest" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Report accepted into demo memory",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ReportReceipt" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "PackageId": {
+        "name": "packageId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" },
+        "example": "io.super-kaguya.items.moon-key"
+      },
+      "Sha256": {
+        "name": "sha256",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "RFC 9457-style error",
+        "content": {
+          "application/problem+json": {
+            "schema": { "$ref": "#/components/schemas/Problem" }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "PackageType": {
+        "type": "string",
+        "enum": ["map", "item", "mechanic", "asset", "music"]
+      },
+      "DependencyKind": {
+        "type": "string",
+        "enum": ["required", "optional", "incompatible"]
+      },
+      "Dependency": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "range", "kind"],
+        "properties": {
+          "id": { "type": "string" },
+          "range": { "type": "string", "example": "^1.0.0" },
+          "kind": { "$ref": "#/components/schemas/DependencyKind" }
+        }
+      },
+      "FileDescriptor": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "size", "mime"],
+        "properties": {
+          "path": { "type": "string" },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "size": { "type": "integer", "minimum": 0 },
+          "mime": { "type": "string" }
+        }
+      },
+      "Manifest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schemaVersion", "id", "type", "version", "versionId", "engine", "license", "dependencies", "conflicts", "capabilities", "entrypoint", "files"],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "id": { "type": "string" },
+          "type": { "$ref": "#/components/schemas/PackageType" },
+          "version": { "type": "string" },
+          "versionId": { "type": "string" },
+          "engine": { "type": "string" },
+          "license": { "type": "string" },
+          "publishedAt": { "type": "string", "format": "date-time" },
+          "dependencies": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Dependency" }
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "range"],
+              "properties": {
+                "id": { "type": "string" },
+                "range": { "type": "string" }
+              }
+            }
+          },
+          "capabilities": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "entrypoint": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "file"],
+            "properties": {
+              "kind": { "const": "declarative" },
+              "file": { "type": "string" }
+            }
+          },
+          "files": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/FileDescriptor" }
+          }
+        }
+      },
+      "VersionSummary": {
+        "type": "object",
+        "required": ["versionId", "version", "engine", "license", "publishedAt", "manifestSha256", "manifestUrl", "dependencies"],
+        "properties": {
+          "versionId": { "type": "string" },
+          "version": { "type": "string" },
+          "engine": { "type": "string" },
+          "license": { "type": "string" },
+          "publishedAt": { "type": "string", "format": "date-time" },
+          "manifestSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "manifestUrl": { "type": "string" },
+          "dependencies": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Dependency" }
+          }
+        }
+      },
+      "PackageSummary": {
+        "type": "object",
+        "required": ["id", "type", "title", "summary", "author", "tags", "featured", "downloads", "createdAt", "updatedAt", "latestVersion", "versionsCount"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "$ref": "#/components/schemas/PackageType" },
+          "title": { "type": "string" },
+          "summary": { "type": "string" },
+          "author": { "type": "string" },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "featured": { "type": "boolean" },
+          "downloads": { "type": "integer", "minimum": 0 },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "latestVersion": { "$ref": "#/components/schemas/VersionSummary" },
+          "versionsCount": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "PackageDetail": {
+        "allOf": [
+          { "$ref": "#/components/schemas/PackageSummary" },
+          {
+            "type": "object",
+            "required": ["versions"],
+            "properties": {
+              "versions": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/VersionSummary" }
+              }
+            }
+          }
+        ]
+      },
+      "PackagePage": {
+        "type": "object",
+        "required": ["items", "total", "nextCursor"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PackageSummary" }
+          },
+          "total": { "type": "integer", "minimum": 0 },
+          "nextCursor": { "type": ["string", "null"] }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "required": ["type", "count"],
+        "properties": {
+          "type": { "$ref": "#/components/schemas/PackageType" },
+          "count": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "ResolveRoot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "range"],
+        "properties": {
+          "id": { "type": "string" },
+          "range": { "type": "string", "example": "^1.0.0" }
+        }
+      },
+      "ResolveRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["engineVersion", "roots"],
+        "properties": {
+          "engineVersion": { "type": "string", "example": "0.8.0" },
+          "roots": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": { "$ref": "#/components/schemas/ResolveRoot" }
+          },
+          "includeOptional": { "type": "boolean", "default": false }
+        }
+      },
+      "ResolvedFile": {
+        "allOf": [
+          { "$ref": "#/components/schemas/FileDescriptor" },
+          {
+            "type": "object",
+            "required": ["downloadUrl"],
+            "properties": {
+              "downloadUrl": { "type": "string" }
+            }
+          }
+        ]
+      },
+      "ResolvedPackage": {
+        "type": "object",
+        "required": ["id", "type", "version", "versionId", "manifestSha256", "manifestUrl", "files"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "$ref": "#/components/schemas/PackageType" },
+          "version": { "type": "string" },
+          "versionId": { "type": "string" },
+          "manifestSha256": { "type": "string" },
+          "manifestUrl": { "type": "string" },
+          "files": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ResolvedFile" }
+          }
+        }
+      },
+      "Lockfile": {
+        "type": "object",
+        "required": ["schemaVersion", "engineVersion", "roots", "includeOptional", "packages"],
+        "properties": {
+          "schemaVersion": { "const": 1 },
+          "engineVersion": { "type": "string" },
+          "roots": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ResolveRoot" }
+          },
+          "includeOptional": { "type": "boolean" },
+          "packages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "version", "versionId", "manifestSha256", "files"],
+              "properties": {
+                "id": { "type": "string" },
+                "version": { "type": "string" },
+                "versionId": { "type": "string" },
+                "manifestSha256": { "type": "string" },
+                "files": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/FileDescriptor" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "ResolveResponse": {
+        "type": "object",
+        "required": ["ok", "engineVersion", "packages", "lockfile", "missing", "constraintErrors", "engineMismatches", "conflicts", "cycles", "totalSize"],
+        "properties": {
+          "ok": { "type": "boolean" },
+          "engineVersion": { "type": "string" },
+          "packages": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ResolvedPackage" }
+          },
+          "lockfile": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/Lockfile" },
+              { "type": "null" }
+            ]
+          },
+          "missing": { "type": "array", "items": { "type": "object" } },
+          "constraintErrors": { "type": "array", "items": { "type": "object" } },
+          "engineMismatches": { "type": "array", "items": { "type": "object" } },
+          "conflicts": { "type": "array", "items": { "type": "object" } },
+          "cycles": {
+            "type": "array",
+            "items": { "type": "array", "items": { "type": "string" } }
+          },
+          "totalSize": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "ReportRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["packageId", "reason"],
+        "properties": {
+          "packageId": { "type": "string" },
+          "versionId": { "type": "string" },
+          "reason": {
+            "type": "string",
+            "enum": ["copyright", "malware", "broken", "misleading", "other"]
+          },
+          "details": { "type": "string", "maxLength": 2000 }
+        }
+      },
+      "ReportReceipt": {
+        "type": "object",
+        "required": ["id", "packageId", "versionId", "reason", "details", "createdAt", "durable"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "packageId": { "type": "string" },
+          "versionId": { "type": ["string", "null"] },
+          "reason": { "type": "string" },
+          "details": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "durable": { "const": false }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "required": ["status", "service", "apiVersion", "catalogRevision", "packageCount"],
+        "properties": {
+          "status": { "const": "ok" },
+          "service": { "const": "super-kaguya-workshop-demo" },
+          "apiVersion": { "const": "v1" },
+          "catalogRevision": { "type": "string" },
+          "packageCount": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "Problem": {
+        "type": "object",
+        "required": ["type", "title", "status", "detail", "requestId"],
+        "properties": {
+          "type": { "type": "string", "format": "uri-reference" },
+          "title": { "type": "string" },
+          "status": { "type": "integer" },
+          "detail": { "type": "string" },
+          "requestId": { "type": "string", "format": "uuid" },
+          "errors": { "type": "array", "items": { "type": "object" } }
+        }
+      }
+    }
+  }
+}

@@ -79,20 +79,6 @@
           ]
         },
         {
-          "id": 6,
-          "name": "Sealed Region Wall",
-          "type": "Solid",
-          "x": 992,
-          "y": 0,
-          "width": 32,
-          "height": 288,
-          "rotation": 0,
-          "visible": true,
-          "properties": [
-            { "name": "visual", "type": "bool", "value": false }
-          ]
-        },
-        {
           "id": 7,
           "name": "Ground B",
           "type": "Solid",
@@ -191,6 +177,8 @@
           "visible": true,
           "properties": [
             { "name": "breakable", "type": "bool", "value": true },
+            { "name": "contents", "type": "string", "value": "food" },
+            { "name": "hits", "type": "int", "value": 2 },
             { "name": "score", "type": "int", "value": 10 }
           ]
         },
@@ -309,7 +297,9 @@
           "properties": [
             { "name": "channel", "type": "string", "value": "memory-well" },
             { "name": "direction", "type": "string", "value": "down" },
-            { "name": "requiresInput", "type": "bool", "value": true }
+            { "name": "requiresInput", "type": "bool", "value": true },
+            { "name": "lockEnabled", "type": "bool", "value": true },
+            { "name": "requiredKeyIds", "type": "string", "value": "[53]" }
           ]
         },
         {
@@ -460,6 +450,7 @@
           "visible": true,
           "properties": [
             { "name": "gravityScale", "type": "float", "value": 0.35 },
+            { "name": "jumpScale", "type": "float", "value": 1.65 },
             { "name": "impulse", "type": "float", "value": 215 },
             { "name": "drag", "type": "float", "value": 1.5 }
           ]
@@ -563,7 +554,11 @@
           "visible": true,
           "properties": [
             { "name": "behavior", "type": "string", "value": "complete" },
-            { "name": "requiresBoss", "type": "bool", "value": true }
+            { "name": "lockEnabled", "type": "bool", "value": true },
+            { "name": "requiredEnemyIds", "type": "string", "value": "[37]" },
+            { "name": "requiredKeyIds", "type": "string", "value": "[53,54,55]" },
+            { "name": "unlockRequirements", "type": "string", "value": "[{\"type\":\"defeat\",\"targetId\":37},{\"type\":\"key\",\"targetId\":53},{\"type\":\"key\",\"targetId\":54},{\"type\":\"key\",\"targetId\":55}]" },
+            { "name": "unlockText", "type": "string", "value": "三轮月钥会记录在检查点中；击败守门人后，月门封印才会完全解除。" }
           ]
         },
         {
@@ -625,7 +620,11 @@
         {
           "id": 48, "name": "Mirror Step A", "type": "MirrorGate",
           "x": 3840, "y": 496, "width": 32, "height": 48, "rotation": 0, "visible": true,
-          "properties": [{ "name": "channel", "type": "string", "value": "gallery-mirror" }]
+          "properties": [
+            { "name": "channel", "type": "string", "value": "gallery-mirror" },
+            { "name": "lockEnabled", "type": "bool", "value": true },
+            { "name": "requiredKeyIds", "type": "string", "value": "[55]" }
+          ]
         },
         {
           "id": 49, "name": "Mirror Step B", "type": "MirrorGate",
@@ -649,6 +648,22 @@
         {
           "id": 52, "name": "Shaft One Way B", "type": "OneWayPlatform",
           "x": 3120, "y": 432, "width": 96, "height": 16, "rotation": 0, "visible": true
+        },
+        {
+          "id": 53, "name": "Moon Key - Well", "type": "KeyPickup",
+          "x": 816, "y": 256, "width": 20, "height": 28, "rotation": 0, "visible": true
+        },
+        {
+          "id": 54, "name": "Moon Key - Gallery", "type": "KeyPickup",
+          "x": 1456, "y": 256, "width": 20, "height": 28, "rotation": 0, "visible": true
+        },
+        {
+          "id": 55, "name": "Moon Key - Mirror", "type": "KeyPickup",
+          "x": 3784, "y": 544, "width": 20, "height": 28, "rotation": 0, "visible": true
+        },
+        {
+          "id": 56, "name": "Barrier Demonstration", "type": "Barrier",
+          "x": 1792, "y": 192, "width": 16, "height": 64, "rotation": 0, "visible": true
         }
       ],
       "opacity": 1,
@@ -659,7 +674,7 @@
     }
   ],
   "nextlayerid": 2,
-  "nextobjectid": 53,
+  "nextobjectid": 57,
   "orientation": "orthogonal",
   "properties": [
     { "name": "title", "type": "string", "value": "FULL SYSTEM TEST" },

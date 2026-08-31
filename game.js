@@ -3,7 +3,9 @@ const context = canvas.getContext("2d");
 const stateLabel = document.querySelector("#state");
 const resetButton = document.querySelector("#reset");
 const menuButton = document.querySelector("#menu");
+const returnEditorButton = document.querySelector("#return-editor");
 const displayFrame = document.querySelector("#display-frame");
+const screenTransition = document.querySelector("#screen-transition");
 const healthValue = document.querySelector("#health-value");
 const scoreValue = document.querySelector("#score-value");
 const startScreen = document.querySelector("#start-screen");
@@ -42,12 +44,22 @@ const editorWarpInput = document.querySelector("#editor-warp-input");
 const editorScrollArea = document.querySelector("#editor-scroll-area");
 const editorScrollPosition = document.querySelector("#editor-scroll-position");
 const editorMessage = document.querySelector("#editor-message");
+const editorTutorial = document.querySelector("#editor-tutorial");
 const settingsButton = document.querySelector("#settings");
 const settingsScreen = document.querySelector("#settings-screen");
 const settingsCrt = document.querySelector("#settings-crt");
 const settingsDebug = document.querySelector("#settings-debug");
 const keybindingList = document.querySelector("#keybinding-list");
 const settingsMessage = document.querySelector("#settings-message");
+const musicToggle = document.querySelector("#music-toggle");
+const musicPixelIcon = document.querySelector("#music-pixel-icon");
+const workshopScreen = document.querySelector("#workshop-screen");
+const workshopList = document.querySelector("#workshop-list");
+const workshopMessage = document.querySelector("#workshop-message");
+const workshopDetail = document.querySelector("#workshop-detail");
+const workshopDetailInstall = document.querySelector("#workshop-detail-install");
+const workshopInstallPanel = document.querySelector("#workshop-install");
+const workshopDependencies = document.querySelector("#workshop-dependencies");
 const shopScreen = document.querySelector("#shop-screen");
 const shopItems = document.querySelector("#shop-items");
 const shopScore = document.querySelector("#shop-score");
@@ -119,9 +131,11 @@ const frameBounds = [
 ];
 
 const colliders = {
-  stand: { width: 36, height: 60 },
-  crouch: { width: 36, height: 50 },
-  jump: { width: 34, height: 56 },
+  // Keep the visual sprite wide, but leave enough shoulder clearance for a
+  // one-tile passage. The collision box is centered on the foot anchor.
+  stand: { width: 28, height: 60 },
+  crouch: { width: 28, height: 50 },
+  jump: { width: 26, height: 56 },
 };
 const smallColliders = {
   stand: { width: 24, height: 32 },
@@ -184,6 +198,7 @@ let shopOpen = false;
 let activeShop = null;
 let areaRegions = [];
 let activeArea = null;
+let barriers = [];
 let activeWarp = null;
 let warpCooldown = 0;
 let warpExitGateId = null;
@@ -195,6 +210,10 @@ let activeStory = null;
 let storyAdvanceRequested = false;
 let collectibles = [];
 let initialCollectibles = [];
+let keyPickups = [];
+let initialKeyPickups = [];
+let collectedKeyIds = new Set();
+let defeatedEnemyIds = new Set();
 let enemies = [];
 let bosses = [];
 let bossProjectiles = [];
@@ -218,7 +237,10 @@ let cameraX = 0;
 let cameraRenderX = 0;
 let cameraY = 0;
 let cameraRenderY = 0;
+let cameraResume = null;
 let activeLevelKey = null;
+let levelStartsBig = false;
+let levelStartsFire = false;
 let loadRequestId = 0;
 let activeMapData = null;
 let portal = null;
@@ -232,8 +254,8 @@ let timeLimit = DEFAULT_TIME_LIMIT;
 let timeRemaining = DEFAULT_TIME_LIMIT;
 let deathReason = "GAME OVER";
 const SAVE_KEY = "super-kaguya-save-v1";
+const EDITOR_DRAFT_KEY = "super-kaguya-editor-draft-v2";
 const levelDefinitions = [
-  { key: "classic", title: "月都路线 1-1", subtitle: "最初的脱出", url: "maps/smb1-1-1.json", unlock: 0, startsPowered: false },
   { key: "all-mechanics", title: "机制综合测试", subtitle: "传送、月尘、Boss 与剧情", url: "maps/all-mechanics-test.json", unlock: 0, startsPowered: true },
 ];
 let customLevelDefinitions = [];
@@ -303,6 +325,56 @@ function propertyBoolean(value, fallback = false) {
   return value === true || value === "true" || value === 1 || value === "1";
 }
 
+function parseIdList(value) {
+  let source = value;
+  if (typeof source === "string") {
+    const text = source.trim();
+    if (!text) return [];
+    if (text.startsWith("[")) {
+      try { source = JSON.parse(text); } catch { source = text.split(","); }
+    } else source = text.split(",");
+  }
+  if (!Array.isArray(source)) source = source == null ? [] : [source];
+  return [...new Set(source.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0))].slice(0, 64);
+}
+
+function readUnlockProperties(properties = {}) {
+  const requiredEnemyIds = parseIdList(properties.requiredEnemyIds);
+  const requiredKeyIds = parseIdList(properties.requiredKeyIds);
+  let malformed = false;
+  if (properties.unlockRequirements != null && String(properties.unlockRequirements).trim()) {
+    try {
+      const requirements = typeof properties.unlockRequirements === "string"
+        ? JSON.parse(properties.unlockRequirements)
+        : properties.unlockRequirements;
+      if (!Array.isArray(requirements)) throw new Error("unlockRequirements must be an array");
+      for (const requirement of requirements.slice(0, 64)) {
+        const targetId = Number(requirement?.targetId);
+        if (!Number.isInteger(targetId) || targetId <= 0) continue;
+        if (["defeat", "enemy", "boss"].includes(requirement.type)) requiredEnemyIds.push(targetId);
+        else if (requirement.type === "key") requiredKeyIds.push(targetId);
+      }
+    } catch {
+      malformed = true;
+    }
+  }
+  const requiresBoss = propertyBoolean(properties.requiresBoss ?? properties.requiresBossDefeated, false);
+  const normalizedEnemies = [...new Set(requiredEnemyIds)];
+  const normalizedKeys = [...new Set(requiredKeyIds)];
+  const inferredLock = requiresBoss || malformed || normalizedEnemies.length > 0 || normalizedKeys.length > 0;
+  return {
+    lockEnabled: properties.lockEnabled == null ? inferredLock : propertyBoolean(properties.lockEnabled, inferredLock),
+    requiresBoss,
+    unlockText: String(properties.unlockText || "").trim().slice(0, 160),
+    requiredEnemyIds: normalizedEnemies,
+    requiredKeyIds: normalizedKeys,
+    missingEnemyIds: [],
+    missingKeyIds: [],
+    lockMalformed: malformed,
+    lockPulse: 0,
+  };
+}
+
 function normalizeDirection(value, fallback = "up") {
   return ["up", "down", "left", "right"].includes(value) ? value : fallback;
 }
@@ -318,7 +390,7 @@ function parseStorySteps(properties) {
   }
   return source.slice(0, 24).map((rawStep) => {
     const step = rawStep && typeof rawStep === "object" ? rawStep : { text: rawStep };
-    const anchor = ["player", "trigger", "enemy", "checkpoint", "portal"].includes(step.anchor || properties.anchor)
+    const anchor = ["player", "trigger", "enemy", "boss", "checkpoint", "portal"].includes(step.anchor || properties.anchor)
       ? step.anchor || properties.anchor
       : "player";
     const cameraValue = step.cameraX ?? properties.cameraX;
@@ -350,7 +422,9 @@ function addBlock(object, type) {
         : type === "brick" && sourceTile === 101 ? "star"
           : properties.contents
     : properties.contents;
-  const contents = originalContents ?? (type === "question" ? "food" : null);
+  const contents = originalContents === "none" || originalContents === "" || originalContents == null
+    ? (type === "question" && originalContents == null ? "food" : null)
+    : originalContents;
   const defaultHits = contents ? 1 : 0;
   const requestedHits = Number(properties.hits ?? properties.dropCount);
   const hitCount = Number.isFinite(requestedHits) ? Math.max(0, Math.min(99, requestedHits)) : defaultHits;
@@ -513,11 +587,12 @@ const objectFactories = {
       width: object.width || 48,
       height: object.height || 80,
       channel: String(properties.channel || "default").slice(0, 48),
+      bidirectional: propertyBoolean(properties.bidirectional ?? properties.twoWay, true),
       direction: normalizeDirection(properties.direction, "up"),
       requiresInput: propertyBoolean(properties.requiresInput, true),
       targetId: Number(properties.targetId) || null,
       target: null,
-      requiresBoss: propertyBoolean(properties.requiresBoss, false),
+      ...readUnlockProperties(properties),
     });
   },
   MirrorGate(object) {
@@ -526,7 +601,9 @@ const objectFactories = {
       id: object.id, name: object.name || "Mirror Step", x: object.x, y: object.y,
       width: object.width || 32, height: object.height || 48,
       channel: String(properties.channel || "mirror-a").slice(0, 48),
+      bidirectional: propertyBoolean(properties.bidirectional ?? properties.twoWay, true),
       targetId: Number(properties.targetId) || null, target: null,
+      ...readUnlockProperties(properties),
     });
   },
   GravitySwitch(object) {
@@ -552,10 +629,9 @@ const objectFactories = {
     const shop = {
       id: object.id, name: object.name || "Moon Shop", x: object.x, y: object.y,
       width: object.width || 48, height: object.height || 48, inventory,
-      type: "shop", collisionMode: "solid", enabled: true, interactive: false,
+      type: "shop", collisionMode: "none", enabled: true, interactive: true,
     };
     shopBlocks.push(shop);
-    collisionSolids.push(shop);
   },
   AreaRegion(object) {
     const properties = tiledProperties(object.properties);
@@ -570,6 +646,22 @@ const objectFactories = {
       transition: properties.transition === "edge" ? "edge" : "smooth",
     });
   },
+  Barrier(object) {
+    const barrier = {
+      id: object.id,
+      name: object.name || "Invisible Barrier",
+      x: object.x,
+      y: object.y,
+      width: Math.max(1, object.width || BLOCK_SIZE),
+      height: Math.max(1, object.height || BLOCK_SIZE),
+      type: "barrier",
+      collisionMode: "solid",
+      interactive: false,
+      enabled: true,
+    };
+    barriers.push(barrier);
+    collisionSolids.push(barrier);
+  },
   LowGravityZone(object) {
     const properties = tiledProperties(object.properties);
     lowGravityZones.push({
@@ -579,7 +671,8 @@ const objectFactories = {
       y: object.y,
       width: object.width || 192,
       height: object.height || 160,
-      gravityScale: clampNumber(properties.gravityScale, 0.12, 0.8, 0.34),
+      gravityScale: clampNumber(properties.gravityScale, 0.03, 1.5, 0.34),
+      jumpScale: clampNumber(properties.jumpScale ?? properties.jumpMultiplier, 0.25, 4, 1.35),
       impulse: clampNumber(properties.impulse, 80, 420, 215),
       drag: clampNumber(properties.drag, 0, 8, 1.5),
     });
@@ -637,13 +730,13 @@ const objectFactories = {
   MoonPortal(object) {
     const properties = tiledProperties(object.properties);
     portal = {
+      id: object.id,
       x: object.x + (object.width || 32) / 2,
       y: object.y + (object.height || 64),
       width: object.width || 32,
       height: object.height || 64,
       behavior: properties.behavior || "complete",
-      requiresBoss: propertyBoolean(properties.requiresBoss ?? properties.requiresBossDefeated, false),
-      lockPulse: 0,
+      ...readUnlockProperties(properties),
     };
   },
   BrickBlock(object) {
@@ -664,11 +757,24 @@ const objectFactories = {
       collected: false,
     });
   },
+  KeyPickup(object) {
+    keyPickups.push({
+      id: object.id,
+      name: object.name || `Moon Key ${object.id}`,
+      x: object.x,
+      y: object.y,
+      width: Math.max(16, object.width || 20),
+      height: Math.max(20, object.height || 28),
+      collected: false,
+      phase: (object.id * 0.91) % (Math.PI * 2),
+    });
+  },
   Enemy(object) {
     const properties = tiledProperties(object.properties);
     const variantSetting = properties.variant ?? "random";
     enemies.push({
       id: object.id,
+      name: String(properties.name || object.name || `Enemy ${object.id}`).slice(0, 32),
       spawnX: object.x,
       spawnY: object.y,
       x: object.x,
@@ -688,6 +794,7 @@ const objectFactories = {
       hurtCooldown: 0,
       active: false,
       alive: true,
+      defeated: false,
     });
   },
   Boss(object) {
@@ -723,6 +830,7 @@ const objectFactories = {
       stateElapsed: 0,
       active: false,
       alive: true,
+      defeated: false,
       score: Math.max(100, Number(properties.score) || 500),
       defeatedCounted: false,
     });
@@ -765,21 +873,40 @@ function areaAtPoint(x, y = worldHeight / 2) {
 }
 
 function setActiveAreaAt(x, y = player.y) {
-  activeArea = areaAtPoint(x, y) || activeArea;
+  const rect = x === player.x && y === player.y
+    ? playerRect()
+    : { left: x - 1, right: x + 1, top: y - 1, bottom: y + 1 };
+  const candidates = areaRegions
+    .map((area) => ({ area, overlap: overlapArea(rect, {
+      left: area.x, right: area.x + area.width, top: area.y, bottom: area.y + area.height,
+    }) }))
+    .filter((candidate) => candidate.overlap > 0)
+    .sort((left, right) => right.overlap - left.overlap
+      || Number(right.area === activeArea) - Number(left.area === activeArea)
+      || left.area.id - right.area.id);
+  activeArea = candidates[0]?.area || null;
   return activeArea;
 }
 
 function cameraBoundsForPoint(x = player.x, y = player.y) {
   const area = areaAtPoint(x, y) || activeArea;
-  if (!area || area.transition === "smooth") return {
+  if (!area) return {
     minimum: 0, maximum: Math.max(0, worldWidth - canvas.width),
     minimumY: 0, maximumY: Math.max(0, worldHeight - canvas.height),
+  };
+  const areaMinimumY = Math.max(0, area.y);
+  const areaMaximumY = Math.max(areaMinimumY, Math.min(worldHeight - canvas.height, area.y + area.height - canvas.height));
+  if (area.transition === "smooth") return {
+    minimum: 0,
+    maximum: Math.max(0, worldWidth - canvas.width),
+    minimumY: areaMinimumY,
+    maximumY: areaMaximumY,
   };
   return {
     minimum: Math.max(0, area.x),
     maximum: Math.max(area.x, Math.min(worldWidth - canvas.width, area.x + area.width - canvas.width)),
-    minimumY: Math.max(0, area.y),
-    maximumY: Math.max(area.y, Math.min(worldHeight - canvas.height, area.y + area.height - canvas.height)),
+    minimumY: areaMinimumY,
+    maximumY: areaMaximumY,
   };
 }
 
@@ -794,18 +921,122 @@ function clampCameraTargetY(target, x = player.x, y = player.y) {
 }
 
 function linkGateCollection(gates) {
+  gates.forEach((gate) => { gate.target = null; });
+  const reverseClaimed = new Set();
   for (const gate of gates) {
-    if (gate.targetId) gate.target = gates.find((candidate) => candidate.id === gate.targetId) || null;
-    if (gate.target) continue;
+    if (!gate.targetId) continue;
+    gate.target = gates.find((candidate) => candidate.id === gate.targetId && candidate !== gate) || null;
+  }
+  for (const gate of gates) {
+    if (!gate.targetId || !gate.target || !gate.bidirectional || gate.target.targetId || reverseClaimed.has(gate.target.id)) continue;
+    gate.target.target = gate;
+    reverseClaimed.add(gate.target.id);
+  }
+  for (const gate of gates) {
+    if (gate.targetId || gate.target) continue;
     const channel = gates.filter((candidate) => candidate.channel === gate.channel);
     const index = channel.indexOf(gate);
     gate.target = channel.length > 1 ? channel[(index + 1) % channel.length] : null;
   }
+  for (const gate of gates) {
+    if (!gate.target) continue;
+    if (!gate.bidirectional && !gate.target.targetId && gate.target.target === gate) {
+      gate.target.target = null;
+    }
+  }
+  gates.forEach((gate) => { gate.returnLinked = Boolean(gate.target && gate.target.target === gate); });
 }
 
 function linkWarpGateTargets() {
   linkGateCollection(warpGates);
   linkGateCollection(mirrorGates);
+}
+
+function allUnlockables() {
+  return [...warpGates, ...mirrorGates, ...(portal ? [portal] : [])];
+}
+
+function finalizeUnlockTargets() {
+  const hostileIds = new Set(allHostiles().map((enemy) => enemy.id));
+  const keyIds = new Set(keyPickups.map((key) => key.id));
+  for (const item of allUnlockables()) {
+    item.missingEnemyIds = item.requiredEnemyIds.filter((id) => !hostileIds.has(id));
+    item.missingKeyIds = item.requiredKeyIds.filter((id) => !keyIds.has(id));
+    if (item.lockMalformed || item.missingEnemyIds.length || item.missingKeyIds.length) {
+      console.warn(`Unlock target validation failed for object #${item.id ?? "portal"}.`, {
+        malformed: item.lockMalformed,
+        missingEnemyIds: item.missingEnemyIds,
+        missingKeyIds: item.missingKeyIds,
+      });
+    }
+  }
+}
+
+function unlockState(item) {
+  if (!item) return { locked: false, keyTotal: 0, keyCollected: 0, enemyTotal: 0, enemyDefeated: 0, missing: [], enemyRequirements: [], keyRequirements: [] };
+  const requiredBossIds = item.requiresBoss ? bosses.map((boss) => boss.id) : [];
+  const enemyIds = [...new Set([...(item.requiredEnemyIds || []), ...requiredBossIds])];
+  const keyIds = item.requiredKeyIds || [];
+  const hostilesById = new Map(allHostiles().map((hostile) => [hostile.id, hostile]));
+  const keysById = new Map(keyPickups.map((key) => [key.id, key]));
+  const enemyRequirements = enemyIds.map((id) => {
+    const target = hostilesById.get(id);
+    return {
+      id,
+      name: target?.name || `${target?.kind === "boss" ? "BOSS" : "敌人"} #${id}`,
+      kind: target?.kind || "enemy",
+      complete: defeatedEnemyIds.has(id),
+      missing: !target,
+    };
+  });
+  const keyRequirements = keyIds.map((id) => {
+    const target = keysById.get(id);
+    return {
+      id,
+      name: target?.name || `月钥 #${id}`,
+      complete: collectedKeyIds.has(id),
+      missing: !target,
+    };
+  });
+  const enemyDefeated = enemyIds.filter((id) => defeatedEnemyIds.has(id)).length;
+  const keyCollected = keyIds.filter((id) => collectedKeyIds.has(id)).length;
+  const missing = [...(item.missingEnemyIds || []), ...(item.missingKeyIds || [])];
+  const hasRequirements = item.lockMalformed || enemyIds.length > 0 || keyIds.length > 0 || missing.length > 0;
+  const locked = Boolean(item.lockEnabled && hasRequirements
+    && (item.lockMalformed || missing.length > 0 || enemyDefeated < enemyIds.length || keyCollected < keyIds.length));
+  return { locked, keyTotal: keyIds.length, keyCollected, enemyTotal: enemyIds.length, enemyDefeated, missing, enemyRequirements, keyRequirements };
+}
+
+function unlockRequirementLines(item, state = unlockState(item)) {
+  const lines = [];
+  if (item?.lockMalformed) lines.push({ complete: false, text: "解锁目标配置无效" });
+  for (const requirement of state.enemyRequirements) {
+    const kind = requirement.kind === "boss" ? "BOSS" : "敌人";
+    const name = requirement.name.includes(`#${requirement.id}`) ? requirement.name : `${requirement.name} #${requirement.id}`;
+    lines.push({ complete: requirement.complete, missing: requirement.missing, text: `击败${kind}：${name}` });
+  }
+  for (const requirement of state.keyRequirements) {
+    const name = requirement.name.includes(`#${requirement.id}`) ? requirement.name : `${requirement.name} #${requirement.id}`;
+    lines.push({ complete: requirement.complete, missing: requirement.missing, text: `取得月钥：${name}` });
+  }
+  return lines;
+}
+
+function lockedMessage(state, item = null) {
+  if (state.missing.length) return `LOCK TARGET MISSING #${state.missing[0]}`;
+  const pending = item ? unlockRequirementLines(item, state).find((requirement) => !requirement.complete) : null;
+  if (pending) return pending.text;
+  if (state.keyCollected < state.keyTotal) return `MOON KEYS ${state.keyCollected}/${state.keyTotal}`;
+  if (state.enemyDefeated < state.enemyTotal) return `TARGETS ${state.enemyDefeated}/${state.enemyTotal}`;
+  return "SEALED";
+}
+
+function canUseUnlockable(item) {
+  const state = unlockState(item);
+  if (!state.locked) return true;
+  item.lockPulse = 3;
+  stateLabel.textContent = lockedMessage(state, item);
+  return false;
 }
 
 function collectSushi(pickup) {
@@ -815,12 +1046,30 @@ function collectSushi(pickup) {
   addScore(pickup.score ?? 10);
 }
 
+function collectKey(key) {
+  if (!key || key.collected) return false;
+  key.collected = true;
+  collectedKeyIds.add(key.id);
+  addScore(50);
+  addDamageNumber(key.x, key.y - key.height, 0, "#fff09c", `MOON KEY #${key.id}`);
+  allUnlockables().forEach((item) => { item.lockPulse = 0.35; });
+  updateHudTester();
+  return true;
+}
+
+function markEnemyDefeated(enemy) {
+  if (!enemy || enemy.defeated) return;
+  enemy.defeated = true;
+  defeatedEnemyIds.add(enemy.id);
+  allUnlockables().forEach((item) => { item.lockPulse = 0.35; });
+}
+
 function generateSurfaceSushi() {
   const authored = initialCollectibles.map((pickup) => ({ ...pickup, collected: false }));
   const spacing = BLOCK_SIZE * 5;
   const candidates = [];
   for (let x = BLOCK_SIZE * 3; x < worldWidth - BLOCK_SIZE * 3; x += BLOCK_SIZE) {
-    if (Math.abs(x - playerSpawn.x) < spacing * 1.5 || Math.abs(x - portal.x) < spacing * 1.5) continue;
+    if (Math.abs(x - playerSpawn.x) < spacing * 1.5 || (portal && Math.abs(x - portal.x) < spacing * 1.5)) continue;
     const surfaces = collisionSolids
       .filter((solid) => solidIsActive(solid) && !["moving", "falling"].includes(solid.type))
       .map((solid) => solidRect(solid))
@@ -887,6 +1136,7 @@ function validateMap(map) {
   }
   if (map.layers.length > 64) throw new Error("Invalid Tiled map: too many layers.");
   let objectCount = 0;
+  const objectIds = new Set();
   for (const layer of map.layers) {
     if (!layer || typeof layer !== "object") throw new Error("Invalid Tiled map layer.");
     if (layer.type !== "objectgroup") continue;
@@ -895,6 +1145,11 @@ function validateMap(map) {
     if (objectCount > 6000) throw new Error("Invalid Tiled map: too many objects.");
     for (const object of layer.objects) {
       if (!object || typeof object !== "object") throw new Error("Invalid Tiled map object.");
+      const objectId = Number(object.id);
+      if (!Number.isInteger(objectId) || objectId <= 0 || objectIds.has(objectId)) {
+        throw new Error("Invalid Tiled map: every object needs a unique positive id.");
+      }
+      objectIds.add(objectId);
       for (const key of ["x", "y", "width", "height"]) {
         if (object[key] != null && !Number.isFinite(Number(object[key]))) throw new Error(`Invalid Tiled object ${key}.`);
       }
@@ -943,12 +1198,16 @@ function loadMapData(map, requestId) {
   shopBlocks = [];
   areaRegions = [];
   activeArea = null;
+  barriers = [];
   activeWarp = null;
   lowGravityZones = [];
   lunarRifts = [];
   checkpoints = [];
   storyEvents = [];
   collectibles = [];
+  keyPickups = [];
+  collectedKeyIds = new Set();
+  defeatedEnemyIds = new Set();
   enemies = [];
   bosses = [];
   bossProjectiles = [];
@@ -974,18 +1233,23 @@ function loadMapData(map, requestId) {
   if (!collisionSolids.length) throw new Error("Tiled map has no collision objects.");
   areaRegions.sort((left, right) => left.x - right.x || left.id - right.id);
   linkWarpGateTargets();
-  if (!portal) {
+  const autoPortal = mapProperties.autoPortal !== false && mapProperties.autoPortal !== "false";
+  if (!portal && autoPortal) {
     portal = {
+      id: -1,
       x: classicMarioRules ? 6240 : worldWidth - 96,
       y: floorY,
       width: 96,
       height: 126,
       behavior: "complete",
+      ...readUnlockProperties({}),
     };
   }
+  finalizeUnlockTargets();
   initialBlocks = blocks.slice();
   staticCollisionSolids = collisionSolids.filter((solid) => !blocks.includes(solid));
   initialCollectibles = collectibles.map((pickup) => ({ ...pickup }));
+  initialKeyPickups = keyPickups.map((pickup) => ({ ...pickup }));
   activeArea = areaAtPoint(playerSpawn.x, playerSpawn.y);
   mapReady = true;
   return true;
@@ -999,9 +1263,14 @@ function chooseEnemyVariant(setting) {
 
 function resetLevel() {
   if (!mapReady) return;
+  const checkpointKeyIds = new Set(currentCheckpoint?.collectedKeyIds || []);
+  const checkpointEnemyIds = new Set(currentCheckpoint?.defeatedEnemyIds || []);
   blocks = initialBlocks.slice();
   collisionSolids = [...staticCollisionSolids, ...blocks];
   collectibles = initialCollectibles.map((pickup) => ({ ...pickup }));
+  collectedKeyIds = checkpointKeyIds;
+  defeatedEnemyIds = checkpointEnemyIds;
+  keyPickups = initialKeyPickups.map((pickup) => ({ ...pickup, collected: collectedKeyIds.has(pickup.id) }));
   gameOver = false;
   paused = false;
   pauseScreen.hidden = true;
@@ -1074,6 +1343,7 @@ function resetLevel() {
   });
   gravitySwitches.forEach((item) => { item.cooldown = 0; item.phase = 0; });
   mirrorGates.forEach((item) => { item.cooldown = 0; });
+  allUnlockables().forEach((item) => { item.lockPulse = 0; });
   shopOpen = false; activeShop = null; nearbyInteractable = null;
   generateSurfaceSushi();
   enemies.forEach((enemy) => {
@@ -1089,6 +1359,13 @@ function resetLevel() {
     enemy.hurtCooldown = 0;
     enemy.active = false;
     enemy.alive = true;
+    enemy.defeated = false;
+    if (defeatedEnemyIds.has(enemy.id)) {
+      enemy.health = 0;
+      enemy.state = "defeated";
+      enemy.alive = false;
+      enemy.defeated = true;
+    }
   });
   bosses.forEach((boss) => {
     boss.x = boss.spawnX;
@@ -1104,9 +1381,17 @@ function resetLevel() {
     boss.stateElapsed = 0;
     boss.active = false;
     boss.alive = true;
+    boss.defeated = false;
     boss.defeatedCounted = false;
     boss.combatPhase = 1;
     boss.phaseTransition = 0;
+    if (defeatedEnemyIds.has(boss.id)) {
+      boss.health = 0;
+      boss.state = "defeated";
+      boss.alive = false;
+      boss.defeated = true;
+      boss.defeatedCounted = true;
+    }
   });
   health = 100;
   score = startingScore;
@@ -1124,11 +1409,14 @@ function resetLevel() {
   warpCooldown = 0;
   warpExitGateId = null;
   activeArea = areaAtPoint(player.x, player.y);
+  if (levelStartsBig) player.size = "big";
+  player.fire = levelStartsFire;
   const startingCamera = clampCameraTarget(player.x - canvas.width * 0.34, player.x, player.y);
   cameraX = startingCamera;
   cameraRenderX = Math.round(startingCamera);
   cameraY = clampCameraTargetY(player.y - canvas.height * 0.58, player.x, player.y);
   cameraRenderY = Math.round(cameraY);
+  cameraResume = null;
   if ((testScenario === "damage" || testScenario === "stomp" || testScenario === "stomp-tough") && enemies[0]) {
     if (testScenario === "stomp-tough") {
       enemies[0].maxHealth = 20;
@@ -1166,7 +1454,7 @@ function tryJump() {
   const lowGravityZone = lowGravityZoneForRect(playerRect());
   if (!player.grounded && lowGravityZone) {
     if (player.swimCooldown > 0) return;
-    player.velocityY = -player.gravityDirection * lowGravityZone.impulse;
+    player.velocityY = -player.gravityDirection * lowGravityZone.impulse * lowGravityZone.jumpScale;
     player.swimCooldown = 0.22;
     player.groundPounding = false;
     return;
@@ -1174,7 +1462,7 @@ function tryJump() {
   if (!player.grounded) return;
   const jumpCollider = player.size === "big" ? colliders.jump : smallColliders.jump;
   if (hasSolidOverlap(jumpCollider)) return;
-  const jumpScale = lowGravityZone ? 0.76 : 1;
+  const jumpScale = lowGravityZone?.jumpScale ?? 1;
   player.velocityY = -player.gravityDirection * (player.size === "big" ? JUMP_SPEED : SMALL_JUMP_SPEED) * jumpScale;
   player.grounded = false;
   player.crouching = false;
@@ -1202,10 +1490,10 @@ function tryFire() {
 }
 
 const SHOP_PRODUCTS = {
-  muffin: { name: "MOON MUFFIN", detail: "GROW LARGE" },
-  fire: { name: "OMELETTE FLAME", detail: "UNLOCK SUSHI SHOTS" },
-  star: { name: "CRESCENT VEIL", detail: "12S INVINCIBILITY" },
-  heal: { name: "FULL MOON TEA", detail: "RESTORE ALL HP" },
+  muffin: { name: "月光松饼", english: "MOON MUFFIN", detail: "变为大辉夜，恢复完整移动能力。" },
+  fire: { name: "星火蛋包饭", english: "OMELETTE FLAME", detail: "获得寿司弹发射能力，并自动变大。" },
+  star: { name: "弯月星辉", english: "CRESCENT VEIL", detail: "获得 12 秒无敌效果，接触敌人可造成伤害。" },
+  heal: { name: "满月茶", english: "FULL MOON TEA", detail: "立即将生命值恢复至 100 点。" },
 };
 
 function interactableDistance(item) {
@@ -1233,10 +1521,14 @@ function renderShop() {
     button.className = "shop-item";
     button.disabled = score < product.price;
     button.dataset.shopProduct = product.type;
+    const icon = document.createElement("i"); icon.className = "shop-item-icon"; icon.dataset.product = product.type; icon.setAttribute("aria-hidden", "true");
+    const copy = document.createElement("span"); copy.className = "shop-item-copy";
     const title = document.createElement("strong"); title.textContent = definition.name;
+    const english = document.createElement("small"); english.textContent = definition.english;
     const detail = document.createElement("span"); detail.textContent = definition.detail;
-    const price = document.createElement("b"); price.textContent = `${String(product.price).padStart(4, "0")} PTS`;
-    button.append(title, detail, price);
+    copy.append(title, english, detail);
+    const price = document.createElement("b"); price.textContent = `${String(product.price).padStart(4, "0")} 积分`;
+    button.append(icon, copy, price);
     return button;
   }));
 }
@@ -1246,7 +1538,7 @@ function openShop(shop) {
   activeShop = shop;
   shopOpen = true;
   Object.keys(input).forEach((control) => setControl(control, false));
-  shopMessage.textContent = "CHOOSE A GIFT FOR THE ROAD";
+  shopMessage.textContent = "选择一件旅途补给。积分不足的商品会暂时锁定。";
   renderShop();
   shopScreen.hidden = false;
   stateLabel.textContent = "MOON SHOP";
@@ -1270,7 +1562,7 @@ function buyShopProduct(type) {
   if (type === "fire") { if (player.size !== "big") beginTransformation(); player.fire = true; }
   if (type === "star") { player.starTime = STAR_TIME; player.invulnerable = 0; }
   if (type === "heal") health = 100;
-  shopMessage.textContent = `${SHOP_PRODUCTS[type].name} ACQUIRED`;
+  shopMessage.textContent = `已获得：${SHOP_PRODUCTS[type].name}`;
   updateHudTester();
   renderShop();
 }
@@ -1504,12 +1796,12 @@ document.querySelectorAll("[data-control]").forEach((button) => {
 });
 
 resetButton.addEventListener("click", resetLevel);
-menuButton.addEventListener("click", showTitleScreen);
+menuButton.addEventListener("click", () => transitionScreen(showTitleScreen));
 deathRestartButton.addEventListener("click", () => {
   resetLevel();
   canvas.focus();
 });
-deathMenuButton.addEventListener("click", showTitleScreen);
+deathMenuButton.addEventListener("click", () => transitionScreen(showTitleScreen));
 
 const VISUAL_SETTINGS_KEY = "super-kaguya-visual-settings-v1";
 
@@ -1542,7 +1834,7 @@ function togglePause(force) {
 
 document.querySelector("#pause-resume").addEventListener("click", () => { togglePause(false); canvas.focus(); });
 document.querySelector("#pause-restart").addEventListener("click", () => { togglePause(false); resetLevel(); });
-document.querySelector("#pause-home").addEventListener("click", showTitleScreen);
+document.querySelector("#pause-home").addEventListener("click", () => transitionScreen(showTitleScreen));
 
 function setCrtMode(enabled, persist = true) {
   displayFrame.classList.toggle("is-crt", enabled);
@@ -1558,6 +1850,8 @@ function showSettings() {
   pendingBinding = null;
   settingsMessage.textContent = "点击键位后，按下新的按键即可替换。";
   renderKeyBindings();
+  syncAudioSettingsUi();
+  setSettingsPage("controls");
   settingsScreen.hidden = false;
 }
 
@@ -1585,6 +1879,556 @@ const savedVisualSettings = readVisualSettings();
 setCrtMode(savedVisualSettings.crt !== false, false);
 setDebugMode(savedVisualSettings.debug === true, false);
 
+const AUDIO_SETTINGS_KEY = "super-kaguya-audio-v1";
+const AUDIO_CATEGORIES = ["music", "player", "enemy", "level"];
+const DEFAULT_AUDIO_SETTINGS = { musicEnabled: true, music: 70, player: 85, enemy: 80, level: 80 };
+
+function readAudioSettings() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(AUDIO_SETTINGS_KEY) || "{}");
+    return {
+      musicEnabled: stored.musicEnabled !== false,
+      ...Object.fromEntries(AUDIO_CATEGORIES.map((category) => [category, clampNumber(stored[category], 0, 100, DEFAULT_AUDIO_SETTINGS[category])])),
+    };
+  } catch { return { ...DEFAULT_AUDIO_SETTINGS }; }
+}
+
+let audioSettings = readAudioSettings();
+const audioRegistry = new Map();
+const activeAudio = new Set();
+
+function saveAudioSettings() {
+  try { localStorage.setItem(AUDIO_SETTINGS_KEY, JSON.stringify(audioSettings)); } catch { /* Storage may be unavailable. */ }
+}
+
+function audioCategoryVolume(category) {
+  if (!AUDIO_CATEGORIES.includes(category)) return 0;
+  if (category === "music" && !audioSettings.musicEnabled) return 0;
+  return audioSettings[category] / 100;
+}
+
+function applyAudioVolumes() {
+  for (const entry of activeAudio) {
+    entry.audio.volume = Math.max(0, Math.min(1, audioCategoryVolume(entry.category) * entry.gain));
+  }
+  musicToggle.classList.toggle("is-muted", !audioSettings.musicEnabled);
+  musicToggle.setAttribute("aria-pressed", String(audioSettings.musicEnabled));
+  musicToggle.setAttribute("aria-label", audioSettings.musicEnabled ? "关闭标题音乐" : "开启标题音乐");
+  canvas.dataset.musicEnabled = String(audioSettings.musicEnabled);
+  for (const category of AUDIO_CATEGORIES) canvas.dataset[`volume${category[0].toUpperCase()}${category.slice(1)}`] = String(audioSettings[category]);
+}
+
+function safeAudioUrl(source) {
+  try {
+    const url = new URL(source, window.location.href);
+    return url.origin === window.location.origin || url.protocol === "blob:" ? url.href : null;
+  } catch { return null; }
+}
+
+function registerAudio(id, definition = {}) {
+  const category = AUDIO_CATEGORIES.includes(definition.category) ? definition.category : "level";
+  const url = safeAudioUrl(definition.url);
+  if (!id || !url) return false;
+  audioRegistry.set(String(id), { url, category, loop: Boolean(definition.loop) });
+  return true;
+}
+
+function playAudio(id, options = {}) {
+  const definition = audioRegistry.get(String(id));
+  if (!definition) return null;
+  const audio = new Audio(definition.url);
+  const entry = { audio, category: definition.category, gain: clampNumber(options.gain, 0, 1, 1) };
+  audio.loop = options.loop ?? definition.loop;
+  audio.preload = "auto";
+  activeAudio.add(entry);
+  applyAudioVolumes();
+  audio.addEventListener("ended", () => activeAudio.delete(entry), { once: true });
+  audio.addEventListener("error", () => activeAudio.delete(entry), { once: true });
+  audio.play().catch(() => activeAudio.delete(entry));
+  return { stop() { audio.pause(); activeAudio.delete(entry); }, audio };
+}
+
+window.SuperKaguyaAudio = Object.freeze({ register: registerAudio, play: playAudio, categories: [...AUDIO_CATEGORIES] });
+
+function setMusicEnabled(enabled) {
+  audioSettings.musicEnabled = Boolean(enabled);
+  saveAudioSettings();
+  applyAudioVolumes();
+}
+
+function syncAudioSettingsUi() {
+  for (const category of AUDIO_CATEGORIES) {
+    const input = document.querySelector(`#volume-${category}`);
+    const output = input?.parentElement.querySelector("output");
+    if (!input || !output) continue;
+    input.value = String(audioSettings[category]);
+    output.value = `${audioSettings[category]}%`;
+    output.textContent = `${audioSettings[category]}%`;
+  }
+  applyAudioVolumes();
+}
+
+function setSettingsPage(page) {
+  document.querySelectorAll("[data-settings-page]").forEach((button) => {
+    const active = button.dataset.settingsPage === page;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  document.querySelectorAll("[data-settings-panel]").forEach((panel) => { panel.hidden = panel.dataset.settingsPanel !== page; });
+  settingsMessage.textContent = page === "audio" ? "各类音量会单独保存；标题页音符只切换背景音乐。" : "点击键位后，按下新的按键即可替换。";
+}
+
+document.querySelectorAll("[data-settings-page]").forEach((button) => button.addEventListener("click", () => setSettingsPage(button.dataset.settingsPage)));
+for (const category of AUDIO_CATEGORIES) {
+  const control = document.querySelector(`#volume-${category}`);
+  control.addEventListener("input", () => {
+    audioSettings[category] = clampNumber(control.value, 0, 100, DEFAULT_AUDIO_SETTINGS[category]);
+    saveAudioSettings();
+    syncAudioSettingsUi();
+  });
+}
+musicToggle.addEventListener("click", () => setMusicEnabled(!audioSettings.musicEnabled));
+syncAudioSettingsUi();
+
+function drawMusicPixelIcon() {
+  const target = musicPixelIcon.getContext("2d");
+  target.imageSmoothingEnabled = false;
+  target.clearRect(0, 0, 24, 20);
+  target.fillStyle = "#24204e";
+  [[6,2,13,3],[6,5,3,10],[16,5,3,8],[2,12,7,5],[12,10,7,5],[3,11,6,2],[13,9,6,2]].forEach((rect) => target.fillRect(...rect));
+  target.fillStyle = "#ff82bd";
+  target.fillRect(9, 5, 7, 2);
+}
+
+drawMusicPixelIcon();
+
+const WORKSHOP_INSTALL_KEY = "super-kaguya-workshop-installed-v1";
+const WORKSHOP_ENGINE_VERSION = "0.8.0";
+const WORKSHOP_TYPES = new Set(["map", "item", "mechanic", "asset", "music"]);
+const WORKSHOP_CAPABILITIES = new Set([
+  "entity.component", "event.trigger", "editor.palette", "render.sprite", "entity.item", "event.collect",
+  "render.overlay", "editor.inspector", "audio.track-metadata", "world.region", "physics.gravity", "map.fragment",
+  "map.course", "map.region", "story.dialogue",
+]);
+
+function readInstalledWorkshopPackages() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(WORKSHOP_INSTALL_KEY) || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch { return {}; }
+}
+
+let installedWorkshopPackages = readInstalledWorkshopPackages();
+let workshopCatalog = [];
+let workshopCatalogSource = "demo";
+let workshopFilter = "all";
+let pendingWorkshopInstall = null;
+let pendingWorkshopResolver = null;
+let selectedWorkshopPackage = null;
+let selectedWorkshopResolution = null;
+
+function saveInstalledWorkshopPackages() {
+  try { localStorage.setItem(WORKSHOP_INSTALL_KEY, JSON.stringify(installedWorkshopPackages)); return true; } catch { return false; }
+}
+
+function workshopApiBase() {
+  const deployed = window.SUPER_KAGUYA_CONFIG?.workshopApiBaseUrl;
+  const value = deployed || "http://127.0.0.1:55125/api/v1";
+  try {
+    const url = new URL(value, window.location.href);
+    url.pathname = url.pathname.replace(/\/$/, "");
+    return url.href.replace(/\/$/, "");
+  } catch { return "http://127.0.0.1:55125/api/v1"; }
+}
+
+function workshopUrl(reference) {
+  if (/^https?:\/\//i.test(reference)) return reference;
+  const base = new URL(workshopApiBase());
+  if (String(reference).startsWith("/")) return `${base.origin}${reference}`;
+  return `${workshopApiBase()}/${String(reference).replace(/^\//, "")}`;
+}
+
+function workshopPackageById(id) {
+  return installedWorkshopPackages[id] || null;
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 1800) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try { return await fetch(url, { ...options, signal: controller.signal }); }
+  finally { window.clearTimeout(timer); }
+}
+
+function publicFallbackPackage(record) {
+  const latest = record.versions[0];
+  return {
+    id: record.id, type: record.type, title: record.title, summary: record.summary, author: record.author,
+    tags: record.tags || [], downloads: Number(record.downloads || 0), featured: Boolean(record.featured),
+    license: latest.license || record.license || "未声明",
+    latestVersion: {
+      version: latest.version, engine: latest.engine, license: latest.license || record.license || "未声明",
+      publishedAt: latest.publishedAt, dependencies: latest.dependencies || [], capabilities: latest.capabilities || [],
+    },
+  };
+}
+
+async function readFallbackWorkshopCatalog() {
+  const response = await fetch("workshop/catalog.json", { cache: "no-store" });
+  if (!response.ok) throw new Error("演示目录不可用");
+  const catalog = await response.json();
+  if (!Array.isArray(catalog.packages)) throw new Error("演示目录格式错误");
+  return catalog;
+}
+
+async function loadWorkshopCatalog() {
+  workshopMessage.textContent = "正在读取工坊目录...";
+  const selectedType = workshopFilter === "all" ? "" : `&type=${encodeURIComponent(workshopFilter)}`;
+  try {
+    const response = await fetchWithTimeout(`${workshopApiBase()}/packages?engine=${WORKSHOP_ENGINE_VERSION}&limit=50${selectedType}`, { cache: "no-store" }, 1200);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    if (!Array.isArray(payload.items)) throw new Error("目录响应格式错误");
+    workshopCatalog = payload.items;
+    workshopCatalogSource = "api";
+    workshopMessage.textContent = `已连接社区工坊，共 ${payload.total ?? payload.items.length} 个内容包。`;
+  } catch (error) {
+    const fallback = await readFallbackWorkshopCatalog();
+    workshopCatalog = fallback.packages.map(publicFallbackPackage)
+      .filter((item) => workshopFilter === "all" || item.type === workshopFilter);
+    workshopCatalogSource = "demo";
+    const reason = error?.name === "AbortError" || /aborted/i.test(error?.message || "") ? "连接超时" : error.message;
+    workshopMessage.textContent = `后端未连接，正在使用仓库内演示目录：${reason}`;
+  }
+  renderWorkshopCatalog();
+}
+
+function workshopTypeLabel(type) {
+  return { map: "关卡", item: "物品", mechanic: "机制", asset: "素材", music: "音乐" }[type] || type;
+}
+
+function renderWorkshopCatalog() {
+  const visible = workshopCatalog.filter((item) => workshopFilter === "all" || item.type === workshopFilter);
+  if (!visible.length) {
+    const empty = document.createElement("p");
+    empty.className = "panel-message";
+    empty.textContent = "当前分类没有内容包。";
+    workshopList.replaceChildren(empty);
+    return;
+  }
+  workshopList.replaceChildren(...visible.map((item) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "workshop-entry";
+    button.dataset.workshopPackage = item.id;
+    const title = document.createElement("strong"); title.textContent = item.title;
+    const summary = document.createElement("small"); summary.textContent = `${workshopTypeLabel(item.type)} / ${item.author || "Unknown"} / ${item.summary || ""}`;
+    const installed = workshopPackageById(item.id);
+    const status = document.createElement("b"); status.textContent = installed ? `已安装 ${installed.version}` : `安装 ${item.latestVersion?.version || ""}`;
+    button.append(title, summary, status);
+    return button;
+  }));
+}
+
+function formatWorkshopBytes(value) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "内嵌演示数据";
+  if (bytes < 1024) return `${bytes} B`;
+  return `${(bytes / 1024).toFixed(bytes >= 10240 ? 0 : 1)} KB`;
+}
+
+function closeWorkshopDetail() {
+  selectedWorkshopPackage = null;
+  selectedWorkshopResolution = null;
+  workshopDetail.hidden = true;
+  workshopList.hidden = false;
+}
+
+function renderWorkshopDetailFiles(resolution) {
+  const container = document.querySelector("#workshop-detail-files");
+  const rows = resolution.packages.flatMap((entry) => {
+    const declared = entry.files?.length ? entry.files : entry.inlineManifest?.files;
+    const files = declared?.length ? declared : [{ path: "content.json", mime: "application/json", size: 0 }];
+    return files.map((file) => {
+      const row = document.createElement("div");
+      const name = document.createElement("strong"); name.textContent = file.path;
+      const owner = document.createElement("small"); owner.textContent = entry.id;
+      const size = document.createElement("b"); size.textContent = formatWorkshopBytes(file.size);
+      row.append(name, owner, size);
+      return row;
+    });
+  });
+  container.replaceChildren(...rows);
+}
+
+function renderWorkshopDetailDependencies(item, resolution) {
+  const container = document.querySelector("#workshop-detail-dependencies");
+  const direct = item.latestVersion?.dependencies || [];
+  if (!direct.length) {
+    const empty = document.createElement("p"); empty.textContent = "此内容包没有外部依赖。";
+    container.replaceChildren(empty);
+    return;
+  }
+  container.replaceChildren(...direct.map((dependency) => {
+    const row = document.createElement("div");
+    const name = document.createElement("strong"); name.textContent = dependency.id;
+    const kind = document.createElement("span"); kind.textContent = dependency.kind === "required" ? "必需" : "可选";
+    const version = document.createElement("b"); version.textContent = dependency.range || "*";
+    const resolved = resolution.packages.find((entry) => entry.id === dependency.id);
+    if (resolved) version.textContent = `${version.textContent} → ${resolved.version}`;
+    row.append(name, kind, version);
+    return row;
+  }));
+}
+
+async function openWorkshopDetail(packageId) {
+  const item = workshopCatalog.find((entry) => entry.id === packageId);
+  if (!item) return;
+  selectedWorkshopPackage = item;
+  selectedWorkshopResolution = null;
+  workshopList.hidden = true;
+  workshopDetail.hidden = false;
+  document.querySelector("#workshop-detail-kicker").textContent = `${workshopTypeLabel(item.type)} / ${item.id}`;
+  document.querySelector("#workshop-detail-title").textContent = item.title;
+  document.querySelector("#workshop-detail-version").textContent = `v${item.latestVersion?.version || "?"}`;
+  document.querySelector("#workshop-detail-summary").textContent = item.summary || "作者未提供介绍。";
+  const meta = document.querySelector("#workshop-detail-meta");
+  const metadata = [
+    ["作者", item.author || "Unknown"],
+    ["许可", item.latestVersion?.license || item.license || "未声明"],
+    ["兼容引擎", item.latestVersion?.engine || WORKSHOP_ENGINE_VERSION],
+    ["下载", String(item.downloads || 0)],
+  ];
+  meta.replaceChildren(...metadata.flatMap(([term, description]) => {
+    const dt = document.createElement("dt"); dt.textContent = term;
+    const dd = document.createElement("dd"); dd.textContent = description;
+    return [dt, dd];
+  }));
+  const tags = document.querySelector("#workshop-detail-tags");
+  tags.replaceChildren(...(item.tags || []).map((tag) => {
+    const label = document.createElement("span"); label.textContent = `#${tag}`; return label;
+  }));
+  const files = document.querySelector("#workshop-detail-files"); files.textContent = "正在读取安装清单...";
+  const dependencies = document.querySelector("#workshop-detail-dependencies"); dependencies.textContent = "正在解析依赖...";
+  const status = document.querySelector("#workshop-detail-status"); status.textContent = "校验内容包兼容性";
+  workshopDetailInstall.disabled = true;
+  workshopDetailInstall.textContent = workshopPackageById(item.id) ? "重新安装" : "安装此内容";
+  try {
+    const resolution = await resolveWorkshopPackages([item.id]);
+    if (selectedWorkshopPackage?.id !== item.id) return;
+    if (!resolution.ok) throw new Error(resolution.missing?.length ? `缺少依赖：${resolution.missing.map((entry) => entry.id).join(", ")}` : "依赖无法解析");
+    selectedWorkshopResolution = resolution;
+    renderWorkshopDetailFiles(resolution);
+    renderWorkshopDetailDependencies(item, resolution);
+    status.textContent = `将安装 ${resolution.packages.length} 个声明式内容包`;
+    workshopDetailInstall.disabled = false;
+  } catch (error) {
+    files.textContent = "安装清单不可用。";
+    dependencies.textContent = error.message;
+    status.textContent = "当前无法安装";
+  }
+}
+
+function localResolveWorkshop(catalog, rootIds) {
+  const byId = new Map(catalog.packages.map((item) => [item.id, item]));
+  const ordered = [];
+  const visiting = new Set();
+  const visited = new Set();
+  const missing = [];
+  const visit = (id) => {
+    if (visited.has(id) || missing.includes(id)) return;
+    if (visiting.has(id)) throw new Error(`依赖循环：${id}`);
+    const record = byId.get(id);
+    if (!record) { missing.push(id); return; }
+    visiting.add(id);
+    const version = record.versions[0];
+    for (const dependency of version.dependencies || []) {
+      if (["required", "optional"].includes(dependency.kind)) visit(dependency.id);
+    }
+    visiting.delete(id);
+    visited.add(id);
+    ordered.push({
+      id: record.id, type: record.type, version: version.version,
+      inlineManifest: {
+        schemaVersion: 1, id: record.id, type: record.type, version: version.version, engine: version.engine,
+        license: version.license || record.license, dependencies: version.dependencies || [], conflicts: version.conflicts || [],
+        capabilities: version.capabilities || [], entrypoint: { kind: "declarative", file: "content.json" }, files: [],
+      },
+      inlineContent: version.content || {},
+    });
+  };
+  rootIds.forEach(visit);
+  return {
+    ok: missing.length === 0,
+    packages: ordered,
+    missing: missing.map((id) => ({ id })),
+    lockfile: { schemaVersion: 1, engineVersion: WORKSHOP_ENGINE_VERSION, roots: rootIds.map((id) => ({ id, range: "*" })), packages: ordered.map(({ id, version }) => ({ id, version })) },
+  };
+}
+
+async function resolveWorkshopPackages(rootIds) {
+  try {
+    const response = await fetchWithTimeout(`${workshopApiBase()}/resolve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ engineVersion: WORKSHOP_ENGINE_VERSION, roots: rootIds.map((id) => ({ id, range: "*" })), includeOptional: true }),
+    }, 2200);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  } catch {
+    return localResolveWorkshop(await readFallbackWorkshopCatalog(), rootIds);
+  }
+}
+
+function validateWorkshopManifest(manifest) {
+  if (!manifest || manifest.schemaVersion !== 1 || !WORKSHOP_TYPES.has(manifest.type)) throw new Error("不支持的工坊清单");
+  if (manifest.entrypoint?.kind !== "declarative" || manifest.entrypoint.file !== "content.json") throw new Error("仅允许声明式 content.json 入口");
+  if ((manifest.capabilities || []).some((capability) => !WORKSHOP_CAPABILITIES.has(capability))) throw new Error("内容包请求了未知能力");
+  for (const file of manifest.files || []) {
+    if (file.path !== "content.json" || file.mime !== "application/json" || file.size > 1024 * 1024) throw new Error("内容包文件不符合演示版安全策略");
+  }
+  return true;
+}
+
+async function sha256Hex(buffer) {
+  if (!globalThis.crypto?.subtle) return null;
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", buffer);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function downloadWorkshopPackage(entry) {
+  if (entry.inlineManifest) {
+    validateWorkshopManifest(entry.inlineManifest);
+    return { id: entry.id, type: entry.type, version: entry.version, manifest: entry.inlineManifest, content: entry.inlineContent };
+  }
+  const manifestResponse = await fetchWithTimeout(workshopUrl(entry.manifestUrl), { cache: "no-store" }, 5000);
+  if (!manifestResponse.ok) throw new Error(`清单下载失败：${entry.id}`);
+  const manifestBytes = await manifestResponse.arrayBuffer();
+  const manifestHash = await sha256Hex(manifestBytes);
+  if (manifestHash && entry.manifestSha256 && manifestHash !== entry.manifestSha256) throw new Error(`清单哈希不匹配：${entry.id}`);
+  const manifest = JSON.parse(new TextDecoder().decode(manifestBytes));
+  validateWorkshopManifest(manifest);
+  const contentFile = entry.files?.find((file) => file.path === "content.json");
+  if (!contentFile) throw new Error(`缺少 content.json：${entry.id}`);
+  const contentResponse = await fetchWithTimeout(workshopUrl(contentFile.downloadUrl), { cache: "no-store" }, 8000);
+  if (!contentResponse.ok) throw new Error(`内容下载失败：${entry.id}`);
+  const contentBytes = await contentResponse.arrayBuffer();
+  const contentHash = await sha256Hex(contentBytes);
+  if (contentHash && contentHash !== contentFile.sha256) throw new Error(`内容哈希不匹配：${entry.id}`);
+  const content = JSON.parse(new TextDecoder().decode(contentBytes));
+  return { id: entry.id, type: entry.type, version: entry.version, manifest, content };
+}
+
+async function installWorkshopResolution(resolution) {
+  if (!resolution?.ok) throw new Error(resolution?.missing?.length ? `缺少依赖：${resolution.missing.map((item) => item.id).join(", ")}` : "依赖解析失败");
+  const downloaded = [];
+  for (const entry of resolution.packages) downloaded.push(await downloadWorkshopPackage(entry));
+  for (const item of downloaded) installedWorkshopPackages[item.id] = { ...item, installedAt: Date.now() };
+  if (!saveInstalledWorkshopPackages()) throw new Error("浏览器存储空间不足");
+  return downloaded;
+}
+
+async function promptWorkshopInstall(rootIds, title = "安装内容包") {
+  if (pendingWorkshopResolver) return false;
+  workshopScreen.hidden = false;
+  workshopInstallPanel.hidden = false;
+  document.querySelector("#workshop-install-title").textContent = title;
+  document.querySelector("#workshop-install-detail").textContent = "正在解析版本与依赖...";
+  workshopDependencies.textContent = "";
+  try {
+    const resolution = await resolveWorkshopPackages(rootIds);
+    if (!resolution.ok) throw new Error(resolution.missing?.length ? `缺少依赖：${resolution.missing.map((item) => item.id).join(", ")}` : "依赖冲突或循环");
+    pendingWorkshopInstall = resolution;
+    document.querySelector("#workshop-install-detail").textContent = "以下内容将按精确版本安装。所有入口均为声明式 JSON。";
+    workshopDependencies.textContent = resolution.packages.map((item) => `${item.id} @ ${item.version}`).join("\n");
+  } catch (error) {
+    workshopInstallPanel.hidden = true;
+    workshopMessage.textContent = `无法准备安装：${error.message}`;
+    return false;
+  }
+  return new Promise((resolve) => { pendingWorkshopResolver = resolve; });
+}
+
+function finishWorkshopPrompt(result) {
+  const resolve = pendingWorkshopResolver;
+  pendingWorkshopResolver = null;
+  pendingWorkshopInstall = null;
+  workshopInstallPanel.hidden = true;
+  resolve?.(result);
+}
+
+function workshopDependencyIds(map) {
+  const properties = tiledProperties(map?.properties);
+  let source = properties.workshopDependencies;
+  if (typeof source === "string") {
+    try { source = JSON.parse(source); } catch { return []; }
+  }
+  const packages = Array.isArray(source) ? source : source?.packages;
+  return [...new Set((Array.isArray(packages) ? packages : []).map((item) => typeof item === "string" ? item : item?.id).filter(Boolean))];
+}
+
+async function ensureWorkshopDependencies(map) {
+  const missing = workshopDependencyIds(map).filter((id) => !workshopPackageById(id));
+  if (!missing.length) return true;
+  const wasHidden = workshopScreen.hidden;
+  const installed = await promptWorkshopInstall(missing, `此关卡需要 ${missing.length} 个工坊依赖`);
+  if (wasHidden) workshopScreen.hidden = true;
+  return installed;
+}
+
+async function openWorkshop() {
+  startScreen.hidden = true;
+  levelScreen.hidden = true;
+  workshopScreen.hidden = false;
+  workshopInstallPanel.hidden = true;
+  closeWorkshopDetail();
+  await loadWorkshopCatalog();
+}
+
+function closeWorkshop() {
+  if (pendingWorkshopResolver) finishWorkshopPrompt(false);
+  transitionScreen(showTitleScreen);
+}
+
+document.querySelector("#open-workshop").addEventListener("click", () => transitionScreen(openWorkshop));
+document.querySelector("#workshop-close").addEventListener("click", closeWorkshop);
+document.querySelector("#workshop-refresh").addEventListener("click", loadWorkshopCatalog);
+document.querySelector("#workshop-detail-back").addEventListener("click", closeWorkshopDetail);
+document.querySelectorAll("[data-workshop-type]").forEach((button) => button.addEventListener("click", () => {
+  workshopFilter = button.dataset.workshopType;
+  document.querySelectorAll("[data-workshop-type]").forEach((item) => item.classList.toggle("is-active", item === button));
+  closeWorkshopDetail();
+  loadWorkshopCatalog();
+}));
+workshopList.addEventListener("click", (event) => {
+  const entry = event.target.closest("[data-workshop-package]");
+  if (!entry) return;
+  openWorkshopDetail(entry.dataset.workshopPackage);
+});
+workshopDetailInstall.addEventListener("click", () => {
+  if (!selectedWorkshopPackage || !selectedWorkshopResolution) return;
+  const selectedId = selectedWorkshopPackage.id;
+  const selectedTitle = selectedWorkshopPackage.title;
+  promptWorkshopInstall([selectedId], `安装 ${selectedTitle}`).then((installed) => {
+    if (!installed) return;
+    renderWorkshopCatalog();
+    closeWorkshopDetail();
+  });
+});
+document.querySelector("#workshop-install-confirm").addEventListener("click", async () => {
+  if (!pendingWorkshopInstall) return;
+  const button = document.querySelector("#workshop-install-confirm");
+  button.disabled = true;
+  try {
+    const installed = await installWorkshopResolution(pendingWorkshopInstall);
+    workshopMessage.textContent = `已安装 ${installed.length} 个声明式内容包，物品类组件已同步到编辑器。`;
+    finishWorkshopPrompt(true);
+    if (!editorScreen.hidden) renderEditorPalette();
+  } catch (error) {
+    workshopMessage.textContent = `安装失败：${error.message}`;
+  } finally { button.disabled = false; }
+});
+document.querySelector("#workshop-install-cancel").addEventListener("click", () => finishWorkshopPrompt(false));
+
 function updateHudTester() {
   healthValue.value = `${health} / 100`;
   healthValue.textContent = `${health} / 100`;
@@ -1602,10 +2446,16 @@ function updateHudTester() {
   canvas.dataset.warpState = activeWarp?.phase || "idle";
   canvas.dataset.playerSize = player.size;
   canvas.dataset.playerFire = String(player.fire);
+  canvas.dataset.playerCrouching = String(player.crouching);
+  canvas.dataset.playerColliderWidth = String(activeCollider().width);
   canvas.dataset.warpGateCount = String(warpGates.length);
   canvas.dataset.mirrorGateCount = String(mirrorGates.length);
+  canvas.dataset.warpLinks = warpGates.map((gate) => `${gate.id}>${gate.target?.id ?? "?"}:${gate.returnLinked ? "2" : "1"}`).join(",");
+  canvas.dataset.mirrorLinks = mirrorGates.map((gate) => `${gate.id}>${gate.target?.id ?? "?"}:${gate.returnLinked ? "2" : "1"}`).join(",");
+  canvas.dataset.portalPresent = String(Boolean(portal));
   canvas.dataset.linkedPlatformCount = String(linkedPlatforms.length);
   canvas.dataset.shopCount = String(shopBlocks.length);
+  canvas.dataset.shopSolidCount = String(collisionSolids.filter((solid) => shopBlocks.includes(solid)).length);
   canvas.dataset.gravityDirection = String(player.gravityDirection);
   canvas.dataset.oneWayCount = String(oneWayPlatforms.length);
   canvas.dataset.fallingPlatformCount = String(fallingPlatforms.length);
@@ -1634,10 +2484,16 @@ document.querySelectorAll("[data-hud]").forEach((button) => {
 updateHudTester();
 
 function currentFrame() {
-  if (player.groundPounding) return actionFrames.crouch[player.facing];
-  if (!player.grounded) return actionFrames.jump[player.facing];
-  if (player.crouching) return actionFrames.crouch[player.facing];
-  return animations[player.animation][player.animationFrame];
+  const visualFacing = player.gravityDirection < 0
+    ? (player.facing === "left" ? "right" : "left")
+    : player.facing;
+  if (player.groundPounding) return actionFrames.crouch[visualFacing];
+  if (!player.grounded) return actionFrames.jump[visualFacing];
+  if (player.crouching) return actionFrames.crouch[visualFacing];
+  const visualAnimation = player.gravityDirection < 0 && ["left", "right"].includes(player.animation)
+    ? (player.animation === "left" ? "right" : "left")
+    : player.animation;
+  return animations[visualAnimation][player.animationFrame];
 }
 
 function activeCollider() {
@@ -1764,6 +2620,39 @@ function hasSolidOverlap(collider) {
   return collisionSolids.some((solid) => solidIsActive(solid) && !solidIsOneWay(solid) && overlaps(rect, solidRect(solid)));
 }
 
+function hasStandingHeadroom() {
+  const set = player.size === "big" ? colliders : smallColliders;
+  const stand = playerRect(set.stand);
+  const crouch = playerRect(set.crouch);
+  const expansion = player.gravityDirection > 0
+    ? { left: stand.left, right: stand.right, top: stand.top, bottom: crouch.top }
+    : { left: stand.left, right: stand.right, top: crouch.bottom, bottom: stand.bottom };
+  return !collisionSolids.some((solid) => solidIsActive(solid) && !solidIsOneWay(solid)
+    && overlaps(expansion, solidRect(solid)));
+}
+
+function resolvePlayerHorizontalPenetration(collider) {
+  for (let iteration = 0; iteration < 4; iteration += 1) {
+    const rect = playerRect(collider);
+    const collision = collisionSolids
+      .filter((solid) => solidIsActive(solid) && !solidIsOneWay(solid))
+      .map((solid) => {
+        const obstacle = solidRect(solid);
+        if (!overlaps(rect, obstacle)) return null;
+        const penetrationX = Math.min(rect.right - obstacle.left, obstacle.right - rect.left);
+        const penetrationY = Math.min(rect.bottom - obstacle.top, obstacle.bottom - rect.top);
+        return penetrationX > 0 && penetrationX <= penetrationY ? { obstacle, penetrationX } : null;
+      })
+      .filter(Boolean)
+      .sort((left, right) => left.penetrationX - right.penetrationX)[0];
+    if (!collision) return;
+    const rectCenter = (rect.left + rect.right) / 2;
+    const obstacleCenter = (collision.obstacle.left + collision.obstacle.right) / 2;
+    player.x += rectCenter <= obstacleCenter ? -collision.penetrationX : collision.penetrationX;
+    player.velocityX = 0;
+  }
+}
+
 function addScore(amount) {
   score = Math.max(0, Math.min(999999, score + amount));
   updateHudTester();
@@ -1855,6 +2744,7 @@ function movePlayerHorizontal(amount, collider) {
       if (!solidIsActive(solid) || solidIsOneWay(solid)) return false;
       const verticalOverlap = rect.bottom > obstacle.top && rect.top < obstacle.bottom;
       if (!verticalOverlap) return false;
+      if (overlaps(before, obstacle)) return overlaps(rect, obstacle);
       return amount > 0
         ? before.right <= obstacle.left && rect.right > obstacle.left
         : before.left >= obstacle.right && rect.left < obstacle.right;
@@ -1945,6 +2835,7 @@ function updateEnemy(enemy, deltaTime) {
     enemy.velocityY += gravityAt(enemy.x, enemy.y) * deltaTime;
     enemy.y += enemy.velocityY * deltaTime;
     if (enemy.y > worldHeight + enemyCollider.height) {
+      markEnemyDefeated(enemy);
       enemy.alive = false;
       runStats.kills += 1;
       addScore(20);
@@ -2015,6 +2906,7 @@ function updateEnemy(enemy, deltaTime) {
   }
 
   if (enemy.y > worldHeight + enemyCollider.height) {
+    markEnemyDefeated(enemy);
     enemy.alive = false;
     updateHudTester();
   }
@@ -2046,6 +2938,7 @@ function updateBoss(boss, deltaTime) {
     boss.velocityY += GRAVITY * deltaTime;
     boss.y += boss.velocityY * deltaTime;
     if (boss.y > worldHeight + boss.height && !boss.defeatedCounted) {
+      markEnemyDefeated(boss);
       boss.alive = false;
       boss.defeatedCounted = true;
       runStats.kills += 1;
@@ -2203,6 +3096,7 @@ function damageEnemy(enemy, amount) {
     }
   }
   if (enemy.health <= 0) {
+    markEnemyDefeated(enemy);
     enemy.state = "dying";
   } else {
     enemy.state = "hit";
@@ -2425,10 +3319,7 @@ function gateRect(gate, padding = 0) {
 
 function beginWarp(gate) {
   if (!gate?.target || activeWarp || warpCooldown > 0 || gameOver || courseComplete) return false;
-  if (gate.requiresBoss && bosses.some((boss) => boss.alive)) {
-    stateLabel.textContent = "DEFEAT THE WARDEN";
-    return false;
-  }
+  if (!canUseUnlockable(gate)) return false;
   activeWarp = { source: gate, target: gate.target, phase: "out", elapsed: 0 };
   Object.keys(input).forEach((control) => setControl(control, false));
   player.velocityX = 0;
@@ -2474,6 +3365,7 @@ function updateMirrorGates(deltaTime) {
   if (activeWarp || warpCooldown > 0) return false;
   const source = mirrorGates.find((gate) => gate.target && gate.cooldown <= 0 && overlaps(playerRect(), gateRect(gate, 1)));
   if (!source) return false;
+  if (!canUseUnlockable(source)) return false;
   const target = source.target;
   source.cooldown = 0.8;
   target.cooldown = 0.8;
@@ -2666,7 +3558,12 @@ function updateCheckpoints() {
     };
     if (!checkpoint.active && overlaps(hitbox, rect)) {
       checkpoint.active = true;
-      currentCheckpoint = { x: checkpoint.x, y: checkpoint.y };
+      currentCheckpoint = {
+        x: checkpoint.x,
+        y: checkpoint.y,
+        collectedKeyIds: [...collectedKeyIds],
+        defeatedEnemyIds: [...defeatedEnemyIds],
+      };
       addScore(50);
     }
   }
@@ -2691,15 +3588,35 @@ function resolveStoryAnchor(step, event) {
 }
 
 function resolveStoryCameraPoint(step, event) {
-  if (step.cameraMode === "coordinate" && Number.isFinite(step.cameraX)) return { x: step.cameraX, y: Number.isFinite(step.cameraY) ? step.cameraY : player.y };
+  if (step.cameraMode === "coordinate" && Number.isFinite(step.cameraX)) {
+    return { x: step.cameraX, y: Number.isFinite(step.cameraY) ? step.cameraY : null };
+  }
   if (step.cameraMode !== "anchor") return null;
   return resolveStoryAnchor({ anchor: step.cameraAnchor, targetId: step.cameraTargetId }, event);
+}
+
+function desiredPlayerCamera() {
+  const rect = playerRect();
+  const centerY = (rect.top + rect.bottom) / 2;
+  return {
+    x: clampCameraTarget(player.x - canvas.width * 0.34, player.x, centerY),
+    y: clampCameraTargetY(centerY - canvas.height * 0.56, player.x, centerY),
+  };
 }
 
 function beginStoryStep(index) {
   if (!activeStory) return;
   if (index >= activeStory.event.steps.length) {
     const completedEvent = activeStory.event;
+    const desired = desiredPlayerCamera();
+    cameraResume = {
+      startX: cameraX,
+      startY: cameraY,
+      targetX: desired.x,
+      targetY: desired.y,
+      elapsed: 0,
+      duration: 0.28,
+    };
     activeStory = null;
     storyAdvanceRequested = false;
     if (completedEvent.trigger === "start") startNextOpeningStory();
@@ -2713,11 +3630,14 @@ function beginStoryStep(index) {
   activeStory.cameraStart = cameraX;
   activeStory.cameraStartY = cameraY;
   const cameraPoint = resolveStoryCameraPoint(step, activeStory.event);
+  const cameraReferenceY = cameraPoint && Number.isFinite(cameraPoint.y) ? cameraPoint.y : cameraY + canvas.height / 2;
   activeStory.cameraTarget = cameraPoint
-    ? clampCameraTarget(cameraPoint.x - canvas.width / 2, cameraPoint.x, cameraPoint.y)
+    ? clampCameraTarget(cameraPoint.x - canvas.width / 2, cameraPoint.x, cameraReferenceY)
     : null;
   activeStory.cameraTargetY = cameraPoint
-    ? clampCameraTargetY(cameraPoint.y - canvas.height / 2, cameraPoint.x, cameraPoint.y)
+    ? Number.isFinite(cameraPoint.y)
+      ? clampCameraTargetY(cameraPoint.y - canvas.height / 2, cameraPoint.x, cameraPoint.y)
+      : cameraY
     : null;
   storyAdvanceRequested = false;
 }
@@ -2734,6 +3654,7 @@ function startStoryEvent(event) {
   player.velocityX = 0;
   stateLabel.textContent = "STORY";
   activeStory = { event, stepIndex: -1, step: null, elapsed: 0, cameraStart: cameraX, cameraStartY: cameraY, cameraTarget: null, cameraTargetY: null };
+  cameraResume = null;
   beginStoryStep(0);
 }
 
@@ -2828,8 +3749,12 @@ function update(deltaTime) {
   if (direction < 0) player.facing = "left";
   if (direction > 0) player.facing = "right";
 
+  if (player.grounded) {
+    const standingCollider = player.size === "big" ? colliders.stand : smallColliders.stand;
+    resolvePlayerHorizontalPenetration(standingCollider);
+  }
   const wantsCrouch = player.grounded && input.down;
-  const canStand = !hasSolidOverlap((player.size === "big" ? colliders : smallColliders).stand);
+  const canStand = hasStandingHeadroom();
   player.crouching = player.grounded && (wantsCrouch || !canStand);
   const activeLowGravity = lowGravityZoneForRect(playerRect());
   player.inLowGravity = Boolean(activeLowGravity);
@@ -2864,8 +3789,7 @@ function update(deltaTime) {
   const descendingVelocity = player.velocityY;
   movePlayer(player.velocityX * deltaTime, player.velocityY * deltaTime);
   if (player.grounded) {
-    const colliderSet = player.size === "big" ? colliders : smallColliders;
-    if (hasSolidOverlap(colliderSet.stand) && !hasSolidOverlap(colliderSet.crouch)) player.crouching = true;
+    if (!hasStandingHeadroom()) player.crouching = true;
   }
 
   updateSpawnedItems(deltaTime);
@@ -2900,6 +3824,16 @@ function update(deltaTime) {
       collectSushi(pickup);
     }
   }
+  for (const key of keyPickups) {
+    if (key.collected) continue;
+    const keyRect = {
+      left: key.x - key.width / 2,
+      right: key.x + key.width / 2,
+      top: key.y - key.height,
+      bottom: key.y,
+    };
+    if (overlaps(hitbox, keyRect)) collectKey(key);
+  }
   updateCheckpoints();
   updateNearbyInteractable();
   checkStoryTriggers();
@@ -2917,17 +3851,13 @@ function update(deltaTime) {
   if (portal && !courseComplete) {
     const portalRect = { left: portal.x - portal.width / 2, right: portal.x + portal.width / 2, top: portal.y - portal.height, bottom: portal.y };
     if (overlaps(playerRect(), portalRect)) {
-      const bossLocked = portal.requiresBoss && bosses.some((boss) => boss.alive);
-      if (bossLocked) {
-        portal.lockPulse = 0.5;
-        stateLabel.textContent = "DEFEAT THE WARDEN";
-      } else {
+      if (canUseUnlockable(portal)) {
         completeLevel();
       }
       return;
     }
   }
-  if (portal) portal.lockPulse = Math.max(0, portal.lockPulse - deltaTime);
+  allUnlockables().forEach((item) => { item.lockPulse = Math.max(0, (item.lockPulse || 0) - deltaTime); });
 
 
   if (playerRect().top > worldHeight + activeCollider().height || playerRect().bottom < -activeCollider().height) {
@@ -2939,14 +3869,23 @@ function update(deltaTime) {
 
   if (!activeStory) {
     setActiveAreaAt(player.x, player.y);
-    const cameraTarget = clampCameraTarget(player.x - canvas.width * 0.34, player.x, player.y);
-    cameraX += (cameraTarget - cameraX) * Math.min(1, deltaTime * 9);
-    cameraX = clampCameraTarget(cameraX, player.x, player.y);
+    const desired = desiredPlayerCamera();
+    if (cameraResume) {
+      cameraResume.elapsed += deltaTime;
+      cameraResume.targetX = desired.x;
+      cameraResume.targetY = desired.y;
+      const raw = Math.min(1, cameraResume.elapsed / cameraResume.duration);
+      const eased = raw * raw * (3 - 2 * raw);
+      cameraX = cameraResume.startX + (cameraResume.targetX - cameraResume.startX) * eased;
+      cameraY = cameraResume.startY + (cameraResume.targetY - cameraResume.startY) * eased;
+      if (raw >= 1) cameraResume = null;
+    } else {
+      cameraX += (desired.x - cameraX) * Math.min(1, deltaTime * 9);
+      cameraY += (desired.y - cameraY) * Math.min(1, deltaTime * 8);
+    }
+    cameraX = clampCameraTarget(cameraX, player.x, (playerRect().top + playerRect().bottom) / 2);
+    cameraY = clampCameraTargetY(cameraY, player.x, (playerRect().top + playerRect().bottom) / 2);
     cameraRenderX = Math.round(cameraX);
-    const playerCenterY = (playerRect().top + playerRect().bottom) / 2;
-    const cameraTargetY = clampCameraTargetY(playerCenterY - canvas.height * 0.56, player.x, playerCenterY);
-    cameraY += (cameraTargetY - cameraY) * Math.min(1, deltaTime * 8);
-    cameraY = clampCameraTargetY(cameraY, player.x, playerCenterY);
     cameraRenderY = Math.round(cameraY);
   }
 
@@ -2999,6 +3938,11 @@ window.__superKaguyaDebug = () => ({
   mirrorGateCount: mirrorGates.length,
   linkedPlatformCount: linkedPlatforms.length,
   shopCount: shopBlocks.length,
+  barrierCount: barriers.length,
+  keys: keyPickups.map((key) => ({ id: key.id, collected: key.collected, x: key.x, y: key.y })),
+  collectedKeyIds: [...collectedKeyIds],
+  defeatedEnemyIds: [...defeatedEnemyIds],
+  locks: allUnlockables().map((item) => ({ id: item.id, ...unlockState(item) })),
   fallingPlatforms: fallingPlatforms.map((platform) => ({ id: platform.id, state: platform.state, y: platform.y, enabled: platform.enabled })),
   foodCount: collectibles.length,
   blockCount: blocks.length,
@@ -3090,6 +4034,20 @@ function drawEnvironmentalZones() {
       context.fillStyle = "#24204e";
       context.font = "bold 8px Consolas, monospace";
       context.fillText(`AREA ${area.name}`, left + 4, area.y + 11);
+      context.restore();
+    }
+    for (const barrier of barriers) {
+      const left = Math.round(barrier.x - cameraRenderX);
+      context.save();
+      context.fillStyle = "rgba(255, 79, 113, .2)";
+      context.fillRect(left, barrier.y, barrier.width, barrier.height);
+      context.strokeStyle = "#ff4f71";
+      context.setLineDash([5, 4]);
+      context.strokeRect(left + 0.5, barrier.y + 0.5, barrier.width - 1, barrier.height - 1);
+      context.setLineDash([]);
+      context.fillStyle = "#fff4ef";
+      context.font = "bold 8px Consolas, monospace";
+      context.fillText(`BARRIER #${barrier.id}`, left + 4, barrier.y + 11);
       context.restore();
     }
   }
@@ -3236,6 +4194,71 @@ function drawPlatformSurface(platform, falling = false) {
   context.restore();
 }
 
+function drawTinyCrescent(target, x, y, color, scale = 1) {
+  target.fillStyle = color;
+  // Offset, pointed horns plus a detached star keep the mark readable as a moon at tiny sizes.
+  target.fillRect(x + scale * 4, y, scale * 3, scale);
+  target.fillRect(x + scale, y + scale, scale * 4, scale);
+  target.fillRect(x, y + scale * 2, scale * 4, scale);
+  target.fillRect(x, y + scale * 3, scale * 3, scale);
+  target.fillRect(x, y + scale * 4, scale * 4, scale);
+  target.fillRect(x + scale, y + scale * 5, scale * 4, scale);
+  target.fillRect(x + scale * 4, y + scale * 6, scale * 3, scale);
+  target.fillRect(x + scale * 8, y + scale * 2, scale, scale * 3);
+  target.fillRect(x + scale * 7, y + scale * 3, scale * 3, scale);
+}
+
+function drawMoonKey(target, centerX, bottomY, scale = 1, bright = true) {
+  const unit = Math.max(1, Math.round(scale));
+  const x = Math.round(centerX - 7 * unit);
+  const y = Math.round(bottomY - 22 * unit);
+  target.fillStyle = "#24204e";
+  target.fillRect(x + unit, y + unit * 2, unit * 8, unit * 10);
+  target.fillStyle = bright ? "#fff09c" : "#7466dd";
+  target.fillRect(x + unit * 2, y + unit * 3, unit * 3, unit * 6);
+  target.fillRect(x + unit * 5, y + unit * 2, unit * 3, unit * 2);
+  target.fillRect(x + unit * 5, y + unit * 8, unit * 3, unit * 2);
+  target.fillRect(x + unit * 9, y + unit * 6, unit * 5, unit * 3);
+  target.fillRect(x + unit * 12, y + unit * 9, unit * 2, unit * 3);
+  target.fillRect(x + unit * 9, y + unit * 9, unit * 2, unit * 2);
+}
+
+function drawUnlockShield(target, left, top, width, height, item) {
+  const state = unlockState(item);
+  if (!state.locked) return;
+  const pulse = item.lockPulse > 0;
+  target.save();
+  target.globalAlpha = pulse ? 0.94 : 0.72;
+  target.fillStyle = "#24204e";
+  const insetX = Math.max(3, Math.floor(width * 0.12));
+  const insetY = Math.max(3, Math.floor(height * 0.12));
+  target.fillRect(left + insetX, top + insetY, Math.max(8, width - insetX * 2), Math.max(12, height - insetY * 2));
+  target.strokeStyle = pulse ? "#fff09c" : "#7466dd";
+  target.lineWidth = 2;
+  target.strokeRect(left + insetX + 0.5, top + insetY + 0.5, Math.max(7, width - insetX * 2 - 1), Math.max(11, height - insetY * 2 - 1));
+  const keyScale = width >= 72 ? 2 : 1;
+  const iconWidth = 10 * keyScale;
+  const shownKeys = Math.min(15, state.keyTotal, Math.max(1, Math.floor((width - insetX * 2) / (iconWidth + 1))));
+  const gap = Math.max(1, Math.min(3, (width - insetX * 2 - shownKeys * iconWidth) / Math.max(1, shownKeys - 1)));
+  let keyX = left + width / 2 - (shownKeys * iconWidth + Math.max(0, shownKeys - 1) * gap) / 2;
+  for (let index = 0; index < shownKeys; index += 1) {
+    drawTinyCrescent(target, Math.round(keyX), Math.round(top + insetY + 4), index < state.keyCollected ? "#fff09c" : "#514b76", keyScale);
+    keyX += iconWidth + gap;
+  }
+  if (state.enemyTotal || state.missing.length || state.keyTotal > shownKeys) {
+    target.fillStyle = state.missing.length ? "#ff4f71" : "#fff4ef";
+    target.font = `bold ${width < 44 ? 5 : 7}px Consolas, monospace`;
+    target.textAlign = "center";
+    const pendingEnemy = state.enemyRequirements.find((requirement) => !requirement.complete);
+    const label = state.missing.length ? `MISSING #${state.missing[0]}`
+      : pendingEnemy ? `${pendingEnemy.kind === "boss" ? "BOSS" : "ENEMY"} #${pendingEnemy.id}`
+        : `KEY ${state.keyCollected}/${state.keyTotal}`;
+    target.fillText(label, left + width / 2, top + height - insetY - 4);
+  }
+  target.textAlign = "start";
+  target.restore();
+}
+
 function drawWarpGate(gate) {
   const x = Math.round(gate.x - cameraRenderX);
   const y = Math.round(gate.y);
@@ -3254,13 +4277,15 @@ function drawWarpGate(gate) {
   context.fillRect(x - unit, y, gate.width + unit * 2, unit * 3);
   context.fillStyle = "#fff4ef";
   context.fillRect(x + unit * 2, y + unit, gate.width - unit * 4, unit);
+  drawUnlockShield(context, x, y, gate.width, gate.height, gate);
   if (debugMode) {
     context.strokeStyle = gate.target ? "#36ff88" : "#ff4f71";
     context.strokeRect(x + 0.5, y + 0.5, gate.width - 1, gate.height - 1);
     context.fillStyle = "#24204e";
     context.font = "bold 7px Consolas, monospace";
     context.textAlign = "center";
-    context.fillText(`${gate.channel} / ${gate.direction.toUpperCase()}`, x + gate.width / 2, y - 4);
+    const lock = unlockState(gate).locked ? " LOCK" : "";
+    context.fillText(`#${gate.id} > #${gate.target?.id ?? "?"} ${gate.returnLinked ? "2W" : "1W"}${lock}`, x + gate.width / 2, y - 4);
     context.textAlign = "start";
   }
 }
@@ -3272,6 +4297,46 @@ function drawMirrorGate(gate) {
   context.fillStyle = pulse ? "#9de7ea" : "#ff82bd"; context.fillRect(x + 3, gate.y + 3, gate.width - 6, gate.height - 6);
   context.fillStyle = "#17142f"; context.fillRect(x + 7, gate.y + 7, gate.width - 14, gate.height - 14);
   context.fillStyle = "#fff4ef"; context.fillRect(x + gate.width / 2 - 2, gate.y + 9, 4, gate.height - 18);
+  drawUnlockShield(context, x, gate.y, gate.width, gate.height, gate);
+  if (debugMode) {
+    context.strokeStyle = gate.target ? "#36ff88" : "#ff4f71";
+    context.strokeRect(x + 0.5, gate.y + 0.5, gate.width - 1, gate.height - 1);
+    context.fillStyle = "#24204e";
+    context.font = "bold 7px Consolas, monospace";
+    context.textAlign = "center";
+    context.fillText(`${gate.id} > ${gate.target?.id ?? "?"}${unlockState(gate).locked ? " LOCK" : ""}`, x + gate.width / 2, gate.y - 4);
+    context.textAlign = "start";
+  }
+}
+
+function drawGateDebugLinks(gates, color) {
+  if (!debugMode) return;
+  context.save();
+  context.strokeStyle = color;
+  context.fillStyle = color;
+  context.lineWidth = 1;
+  context.setLineDash([6, 5]);
+  for (const gate of gates) {
+    if (!gate.target) continue;
+    const fromX = gate.x + gate.width / 2 - cameraRenderX;
+    const fromY = gate.y + gate.height / 2;
+    const toX = gate.target.x + gate.target.width / 2 - cameraRenderX;
+    const toY = gate.target.y + gate.target.height / 2;
+    context.beginPath();
+    context.moveTo(fromX, fromY);
+    context.lineTo(toX, toY);
+    context.stroke();
+    const angle = Math.atan2(toY - fromY, toX - fromX);
+    context.setLineDash([]);
+    context.beginPath();
+    context.moveTo(toX, toY);
+    context.lineTo(toX - Math.cos(angle - 0.55) * 8, toY - Math.sin(angle - 0.55) * 8);
+    context.lineTo(toX - Math.cos(angle + 0.55) * 8, toY - Math.sin(angle + 0.55) * 8);
+    context.closePath();
+    context.fill();
+    context.setLineDash([6, 5]);
+  }
+  context.restore();
 }
 
 function drawGravitySwitch(item) {
@@ -3322,6 +4387,8 @@ function drawWorldObjects() {
   for (const platform of linkedPlatforms) drawPlatformSurface(platform, false);
   for (const platform of oneWayPlatforms) drawPlatformSurface(platform, false);
   for (const platform of fallingPlatforms) drawPlatformSurface(platform, true);
+  drawGateDebugLinks(warpGates, "rgba(157, 231, 234, .9)");
+  drawGateDebugLinks(mirrorGates, "rgba(255, 130, 189, .9)");
   for (const gate of warpGates) drawWarpGate(gate);
   for (const gate of mirrorGates) drawMirrorGate(gate);
   for (const item of gravitySwitches) drawGravitySwitch(item);
@@ -3336,6 +4403,20 @@ function drawWorldObjects() {
     context.fillStyle = checkpoint.active ? "#ff82bd" : "#9de7ea";
     context.fillRect(x + 5, y - checkpoint.height + 8, 7, 4);
   }
+  for (const key of keyPickups) {
+    if (key.collected) continue;
+    const x = Math.round(key.x - cameraRenderX);
+    if (x < -24 || x > canvas.width + 24) continue;
+    const bob = Math.round(Math.sin(questionPhase * 3.2 + key.phase) * 2);
+    drawMoonKey(context, x, key.y + bob, 1, Math.floor(questionPhase * 7 + key.id) % 2 === 0);
+    if (debugMode) {
+      context.fillStyle = "#24204e";
+      context.font = "bold 7px Consolas, monospace";
+      context.textAlign = "center";
+      context.fillText(`KEY #${key.id}`, x, key.y - key.height - 5);
+      context.textAlign = "start";
+    }
+  }
   for (const block of blocks) {
     const x = Math.round(block.x - cameraRenderX);
     if (x + block.width < 0 || x > canvas.width) continue;
@@ -3346,7 +4427,7 @@ function drawWorldObjects() {
       context.strokeStyle = block.breakable ? "#36ff88" : "#ff4f71";
       context.lineWidth = 1;
       context.strokeRect(x + 0.5, y + 0.5, block.width - 1, block.height - 1);
-      if (block.type === "question") {
+      if (block.contents) {
         const contents = block.contents === "mushroom"
           ? player.size === "big" ? "OMELETTE" : "MUFFIN"
           : block.contents === "food" ? "SUSHI"
@@ -3355,7 +4436,7 @@ function drawWorldObjects() {
         context.fillStyle = "#24204e";
         context.font = "bold 7px Consolas, monospace";
         context.textAlign = "center";
-        context.fillText(contents, x + block.width / 2, y - 3);
+        context.fillText(block.used ? `${contents} USED` : `${contents} x${block.remainingHits}`, x + block.width / 2, y - 3);
         context.textAlign = "start";
       }
     }
@@ -3451,24 +4532,16 @@ function drawMoonPortal() {
   const left = x - width / 2;
   const top = y - height;
   drawPortalFrame(context, left, top, width, height, pulse);
-  const locked = portal.requiresBoss && bosses.some((boss) => boss.alive);
-  if (locked) {
-    context.save();
-    context.globalAlpha = portal.lockPulse > 0 ? 0.95 : 0.72;
-    context.fillStyle = "#24204e";
-    context.fillRect(left + width * 0.28, top + height * 0.43, width * 0.44, height * 0.3);
-    context.fillStyle = "#ff4f71";
-    context.fillRect(left + width * 0.34, top + height * 0.54, width * 0.32, height * 0.17);
-    context.fillStyle = "#fff09c";
-    context.font = "bold 8px Consolas, monospace";
-    context.textAlign = "center";
-    context.fillText("BOSS LOCK", x, top - 5);
-    context.textAlign = "start";
-    context.restore();
-  }
+  drawUnlockShield(context, left, top, width, height, portal);
   if (debugMode) {
-    context.strokeStyle = "#36ff88";
+    const state = unlockState(portal);
+    context.strokeStyle = state.locked ? "#ff4f71" : "#36ff88";
     context.strokeRect(left + .5, top + .5, width - 1, height - 1);
+    context.fillStyle = "#24204e";
+    context.font = "bold 7px Consolas, monospace";
+    context.textAlign = "center";
+    context.fillText(`#${portal.id} ${state.locked ? lockedMessage(state, portal) : "OPEN"}`, x, top - 5);
+    context.textAlign = "start";
   }
 }
 
@@ -3504,15 +4577,17 @@ function addPixelOutline(target, color) {
 
 function drawMoonItem(target, x, y) {
   target.fillStyle = "#fff4ef";
-  target.fillRect(x + 7, y + 2, 7, 2);
-  target.fillRect(x + 4, y + 4, 10, 4);
-  target.fillRect(x + 2, y + 8, 10, 8);
-  target.fillRect(x + 4, y + 16, 9, 4);
-  target.fillRect(x + 7, y + 20, 6, 2);
-  target.fillStyle = "#7466dd";
-  target.fillRect(x + 12, y + 5, 4, 4);
-  target.fillRect(x + 11, y + 9, 6, 7);
-  target.fillRect(x + 10, y + 16, 4, 3);
+  target.fillRect(x + 7, y + 1, 8, 2);
+  target.fillRect(x + 4, y + 3, 11, 3);
+  target.fillRect(x + 2, y + 6, 13, 12);
+  target.fillRect(x + 4, y + 18, 11, 3);
+  target.fillRect(x + 7, y + 21, 8, 2);
+  target.clearRect(x + 10, y + 3, 7, 3);
+  target.clearRect(x + 9, y + 6, 10, 11);
+  target.clearRect(x + 10, y + 17, 7, 3);
+  target.fillStyle = "#fff09c";
+  target.fillRect(x + 19, y + 3, 2, 7);
+  target.fillRect(x + 16, y + 6, 8, 2);
 }
 
 function drawPowerItem(item) {
@@ -3604,7 +4679,9 @@ function drawBossProjectiles() {
 function drawBosses() {
   for (const boss of bosses) {
     if (!boss.alive) continue;
-    if ((boss.state === "dying" || boss.state === "hit") && Math.floor(boss.stateElapsed / 0.08) % 2 === 0) continue;
+    // Bosses remain visible during a hit; the phase ring and damage number
+    // communicate feedback without making the large target disappear.
+    if (boss.state === "dying" && Math.floor(boss.stateElapsed / 0.08) % 2 === 0) continue;
     const x = Math.round(boss.x - cameraRenderX);
     const top = Math.round(boss.y - boss.height);
     if (x + boss.width / 2 < 0 || x - boss.width / 2 > canvas.width) continue;
@@ -3691,6 +4768,48 @@ function drawBossHud() {
   context.textAlign = "start";
 }
 
+function drawLockRequirementNotice() {
+  const item = allUnlockables()
+    .filter((candidate) => candidate.lockEnabled && candidate.lockPulse > 0)
+    .sort((left, right) => right.lockPulse - left.lockPulse)[0];
+  if (!item) return;
+  const state = unlockState(item);
+  const requirements = unlockRequirementLines(item, state);
+  context.save();
+  context.font = 'bold 9px "Microsoft YaHei", Consolas, monospace';
+  const panelWidth = Math.min(440, canvas.width - 32);
+  const customLines = item.unlockText ? wrapBubbleText(item.unlockText, panelWidth - 28).slice(0, 2) : [];
+  const visibleRequirements = requirements.slice(0, 5);
+  if (requirements.length > visibleRequirements.length) {
+    visibleRequirements.push({ complete: false, text: `另有 ${requirements.length - visibleRequirements.length} 项条件` });
+  }
+  const panelHeight = 30 + visibleRequirements.length * 14 + (customLines.length ? 9 + customLines.length * 13 : 0);
+  const left = Math.round((canvas.width - panelWidth) / 2);
+  const top = canvas.height - panelHeight - 13;
+  context.globalAlpha = 0.94;
+  context.fillStyle = "#17142f";
+  context.fillRect(left, top, panelWidth, panelHeight);
+  context.globalAlpha = 1;
+  context.fillStyle = state.locked ? "#ff82bd" : "#9de7ea";
+  context.fillRect(left, top, 4, panelHeight);
+  context.fillStyle = "#fff4ef";
+  context.textBaseline = "top";
+  context.fillText(state.locked ? "月门封印条件" : "封印已解除", left + 13, top + 8);
+  visibleRequirements.forEach((requirement, index) => {
+    context.fillStyle = requirement.missing ? "#ff4f71" : requirement.complete ? "#9de7ea" : "#fff09c";
+    const status = requirement.missing ? "[无效]" : requirement.complete ? "[完成]" : "[未完成]";
+    context.fillText(`${status} ${requirement.text}`, left + 13, top + 25 + index * 14);
+  });
+  if (customLines.length) {
+    const customTop = top + 25 + visibleRequirements.length * 14;
+    context.fillStyle = "#7466dd";
+    context.fillRect(left + 13, customTop, panelWidth - 26, 1);
+    context.fillStyle = "#d8bcff";
+    customLines.forEach((line, index) => context.fillText(line, left + 13, customTop + 7 + index * 13));
+  }
+  context.restore();
+}
+
 function drawHud() {
   if (healthSprite.complete) {
     const healthFrame = 10 - Math.ceil(health / 10);
@@ -3743,6 +4862,30 @@ function drawHud() {
   drawBossHud();
 }
 
+function formatDebugCoordinate(value) {
+  const rounded = Math.round(value);
+  return `${rounded < 0 ? "-" : ""}${String(Math.abs(rounded)).padStart(5, "0")}`;
+}
+
+function drawDebugPlayerCoordinates() {
+  if (!debugMode) return;
+  const label = `PLAYER  X ${formatDebugCoordinate(player.x)}  Y ${formatDebugCoordinate(player.y)}`;
+  context.save();
+  context.font = "bold 9px Consolas, monospace";
+  const width = Math.ceil(context.measureText(label).width) + 12;
+  context.globalAlpha = 0.88;
+  context.fillStyle = "#17142f";
+  context.fillRect(8, 68, width, 19);
+  context.globalAlpha = 1;
+  context.fillStyle = "#36ff88";
+  context.fillRect(8, 68, 3, 19);
+  context.fillStyle = "#fff4ef";
+  context.textAlign = "left";
+  context.textBaseline = "middle";
+  context.fillText(label, 16, 78);
+  context.restore();
+}
+
 function frameCoordinates(frame) {
   return { sourceX: (frame % 8) * FRAME_SIZE, sourceY: Math.floor(frame / 8) * FRAME_SIZE };
 }
@@ -3756,6 +4899,8 @@ function playerVisibleDuringDamage() {
 function drawPlayer() {
   if (!playerSprite.complete || !playerSprite.naturalWidth || !playerVisibleDuringDamage()) return;
   const frame = currentFrame();
+  canvas.dataset.playerFacing = player.facing;
+  canvas.dataset.playerFrame = String(frame);
   const bounds = frameBounds[frame];
   const source = frameCoordinates(frame);
   const visibleBottom = bounds.y + bounds.height;
@@ -3853,20 +4998,28 @@ function wrapBubbleText(text, maxWidth) {
 }
 
 function drawStoryBubble() {
-  if (!activeStory?.step) return;
+  if (!activeStory?.step) {
+    delete canvas.dataset.storyBubbleBox;
+    delete canvas.dataset.storyAnchor;
+    return;
+  }
   const step = activeStory.step;
   const anchor = resolveStoryAnchor(step, activeStory.event);
   const anchorX = Math.max(14, Math.min(canvas.width - 14, Math.round(anchor.x - cameraRenderX)));
-  const anchorY = Math.max(20, Math.min(canvas.height - 24, Math.round(anchor.y - cameraRenderY)));
+  const anchorY = Math.max(18, Math.min(canvas.height - 18, Math.round(anchor.y - cameraRenderY)));
   const bubbleWidth = Math.min(300, canvas.width - 28);
   context.font = "11px 'Microsoft YaHei', Consolas, monospace";
   const lines = wrapBubbleText(step.text, bubbleWidth - 24);
   const bubbleHeight = 38 + lines.length * 15;
   let bubbleX = Math.round(anchorX - bubbleWidth / 2);
   bubbleX = Math.max(12, Math.min(canvas.width - bubbleWidth - 12, bubbleX));
-  let bubbleY = anchorY - bubbleHeight - 14;
-  if (bubbleY < 34) bubbleY = canvas.height - bubbleHeight - 28;
+  // Prefer above the speaker. If the top is clipped, keep the bubble above
+  // the character and clamp it to the viewport instead of moving it below.
+  let bubbleY = anchorY - bubbleHeight - 18;
+  bubbleY = Math.max(8, Math.min(canvas.height - bubbleHeight - 8, bubbleY));
   const bubbleBelowAnchor = bubbleY > anchorY;
+  canvas.dataset.storyBubbleBox = `${bubbleX},${bubbleY},${bubbleWidth},${bubbleHeight}`;
+  canvas.dataset.storyAnchor = `${anchorX},${anchorY}`;
   context.fillStyle = "#24204e";
   context.fillRect(bubbleX - 3, bubbleY - 3, bubbleWidth + 6, bubbleHeight + 6);
   context.fillStyle = "#fff4ef";
@@ -3924,6 +5077,16 @@ function drawWarpFade() {
 
 function draw() {
   if (!mapReady) return;
+  canvas.dataset.cameraX = cameraX.toFixed(2);
+  canvas.dataset.cameraY = cameraY.toFixed(2);
+  canvas.dataset.playerX = player.x.toFixed(2);
+  canvas.dataset.playerY = player.y.toFixed(2);
+  canvas.dataset.playerCrouching = String(player.crouching);
+  canvas.dataset.playerSolidOverlapCount = String(collisionSolids.filter((solid) => solidIsActive(solid)
+    && !solidIsOneWay(solid) && overlaps(playerRect(), solidRect(solid))).length);
+  canvas.dataset.activeArea = activeArea?.name || "";
+  canvas.dataset.collectedKeys = [...collectedKeyIds].join(",");
+  canvas.dataset.lockStates = allUnlockables().map((item) => `${item.id}:${unlockState(item).locked ? "locked" : "open"}`).join(",");
   drawBackground();
   context.save();
   context.translate(0, -cameraRenderY);
@@ -3938,6 +5101,8 @@ function draw() {
   drawDamageNumbers();
   context.restore();
   drawHud();
+  drawLockRequirementNotice();
+  drawDebugPlayerCoordinates();
   drawStoryBubble();
   drawWarpFade();
 }
@@ -3961,9 +5126,8 @@ async function bootstrap() {
   previousTime = performance.now();
   requestAnimationFrame(gameLoop);
   if (testScenario) {
-    const comprehensiveScenario = ["all-mechanics", "boss", "boss-phases", "zones", "warp", "falling", "vertical", "linked", "gravity", "mirror", "shop", "timeup"].includes(testScenario);
-    await startLevel(comprehensiveScenario ? "all-mechanics" : "classic");
-    if (["boss", "boss-phases"].includes(testScenario) && bosses[0]) {
+    await startLevel("all-mechanics");
+    if (["boss", "boss-hit", "boss-phases"].includes(testScenario) && bosses[0]) {
       activeStory = null;
       storyEvents.forEach((event) => { event.triggered = true; });
       player.x = bosses[0].x - 150;
@@ -3973,6 +5137,13 @@ async function bootstrap() {
       bosses[0].shotTimer = 999;
       if (testScenario === "boss-phases") {
         bosses[0].health = Math.ceil(bosses[0].maxHealth * 0.68);
+      }
+      if (testScenario === "boss-hit") {
+        bosses[0].health -= 20;
+        bosses[0].state = "hit";
+        bosses[0].stateElapsed = 0.08;
+        addDamageNumber(bosses[0].x, bosses[0].y - bosses[0].height, 20, "#fff09c");
+        paused = true;
       }
       activeArea = areaAtPoint(player.x, player.y);
       cameraX = clampCameraTarget(player.x - canvas.width * 0.34, player.x, player.y);
@@ -4009,11 +5180,11 @@ async function bootstrap() {
         cameraX = clampCameraTarget(player.x - canvas.width * 0.34, player.x, player.y);
         cameraRenderX = Math.round(cameraX);
       }
-    } else if (["vertical", "linked", "gravity", "mirror", "shop"].includes(testScenario)) {
+    } else if (["vertical", "linked", "gravity", "gravity-walk", "mirror", "shop"].includes(testScenario)) {
       activeStory = null;
       storyEvents.forEach((event) => { event.triggered = true; });
       const target = testScenario === "linked" ? linkedPlatforms[0]
-        : testScenario === "gravity" ? gravitySwitches[0]
+        : ["gravity", "gravity-walk"].includes(testScenario) ? gravitySwitches[0]
           : testScenario === "mirror" ? mirrorGates[0]
             : testScenario === "shop" ? shopBlocks[0]
               : { x: 3136, y: 520, width: 0, height: 0 };
@@ -4026,7 +5197,94 @@ async function bootstrap() {
         cameraY = clampCameraTargetY(player.y - canvas.height * 0.58, player.x, player.y);
         cameraRenderX = Math.round(cameraX); cameraRenderY = Math.round(cameraY);
         if (testScenario === "shop") { score = 500; updateNearbyInteractable(); }
+        if (testScenario === "gravity-walk") {
+          flipPlayerGravity();
+          stateLabel.textContent = "GRAVITY WALK TEST";
+          window.setTimeout(() => setControl("right", true), 1200);
+          window.setTimeout(() => {
+            setControl("right", false);
+            paused = true;
+            stateLabel.textContent = "GRAVITY WALK TEST";
+          }, 1850);
+        }
       }
+    } else if (["barrier", "barrier-crouch"].includes(testScenario)) {
+      activeStory = null;
+      storyEvents.forEach((event) => { event.triggered = true; });
+      const barrier = barriers.find((item) => item.id === 56) || barriers[0];
+      if (barrier) {
+        player.size = "big";
+        player.x = barrier.x - colliders.jump.width / 2;
+        player.y = barrier.y + barrier.height;
+        player.grounded = true;
+        player.crouching = false;
+        activeArea = areaAtPoint(player.x, player.y);
+        cameraX = clampCameraTarget(barrier.x - canvas.width * 0.45, player.x, player.y);
+        cameraRenderX = Math.round(cameraX);
+        if (testScenario === "barrier-crouch") setControl("down", true);
+        setControl("right", true);
+        window.setTimeout(() => {
+          setControl("right", false);
+          setControl("down", false);
+          paused = true;
+          stateLabel.textContent = testScenario === "barrier-crouch" ? "BARRIER CROUCH TEST" : "BARRIER COLLISION TEST";
+        }, 500);
+      }
+      setDebugMode(true, false);
+    } else if (testScenario === "gap") {
+      activeStory = null;
+      storyEvents.forEach((event) => { event.triggered = true; });
+      const leftWall = { id: -201, name: "Gap Left", x: 160, y: floorY - 96, width: 32, height: 96, type: "hard", enabled: true, collisionMode: "solid" };
+      const rightWall = { id: -202, name: "Gap Right", x: 224, y: floorY - 96, width: 32, height: 96, type: "hard", enabled: true, collisionMode: "solid" };
+      terrainObjects.push(leftWall, rightWall);
+      collisionSolids.push(leftWall, rightWall);
+      player.size = "big";
+      player.x = 208;
+      player.y = floorY;
+      player.grounded = true;
+      activeArea = areaAtPoint(player.x, player.y);
+      cameraX = clampCameraTarget(0, player.x, player.y);
+      cameraRenderX = Math.round(cameraX);
+      setDebugMode(true, false);
+      paused = true;
+      stateLabel.textContent = "32PX GAP TEST";
+      updateHudTester();
+    } else if (testScenario === "brick-label") {
+      activeStory = null;
+      storyEvents.forEach((event) => { event.triggered = true; });
+      const targetBlock = blocks.find((block) => block.type === "brick" && block.contents);
+      if (targetBlock) {
+        player.x = targetBlock.x - 48;
+        player.y = floorY;
+        player.grounded = true;
+        activeArea = areaAtPoint(player.x, player.y);
+        cameraX = clampCameraTarget(targetBlock.x - canvas.width / 2, player.x, player.y);
+        cameraRenderX = Math.round(cameraX);
+      }
+      setDebugMode(true, false);
+      paused = true;
+      stateLabel.textContent = "BRICK CONTENT TEST";
+    } else if (["lock", "lock-open"].includes(testScenario)) {
+      activeStory = null;
+      storyEvents.forEach((event) => { event.triggered = true; });
+      if (testScenario === "lock-open") {
+        keyPickups.forEach((key) => { key.collected = true; collectedKeyIds.add(key.id); });
+        allHostiles().forEach((enemy) => { enemy.defeated = true; defeatedEnemyIds.add(enemy.id); });
+      }
+      if (portal) {
+        player.x = portal.x - 130;
+        player.y = portal.y;
+        player.grounded = true;
+        activeArea = areaAtPoint(player.x, player.y);
+        cameraX = clampCameraTarget(portal.x - canvas.width * 0.72, player.x, player.y);
+        cameraY = clampCameraTargetY(portal.y - canvas.height * 0.76, player.x, player.y);
+        cameraRenderX = Math.round(cameraX);
+        cameraRenderY = Math.round(cameraY);
+        portal.lockPulse = 3;
+      }
+      setDebugMode(true, false);
+      paused = true;
+      stateLabel.textContent = testScenario === "lock-open" ? "LOCK OPEN TEST" : "LOCK TARGET TEST";
     } else if (testScenario === "timeup") {
       activeStory = null;
       storyEvents.forEach((event) => { event.triggered = true; });
@@ -4058,8 +5316,14 @@ function readSave() {
 
 function writeSave(save) {
   const progress = { completed: [...new Set(save.completed)].slice(-40) };
-  localStorage.setItem(`${SAVE_KEY}-custom`, JSON.stringify(save.custom.slice(-20)));
-  document.cookie = `${encodeURIComponent(SAVE_KEY)}=${encodeURIComponent(JSON.stringify(progress))}; max-age=31536000; path=/; SameSite=Lax`;
+  try {
+    localStorage.setItem(`${SAVE_KEY}-custom`, JSON.stringify(save.custom));
+    document.cookie = `${encodeURIComponent(SAVE_KEY)}=${encodeURIComponent(JSON.stringify(progress))}; max-age=31536000; path=/; SameSite=Lax`;
+    return true;
+  } catch (error) {
+    console.error("Unable to save progress", error);
+    return false;
+  }
 }
 
 function currentSave() { return readSave(); }
@@ -4076,9 +5340,17 @@ function makeLevelCard(definition, locked, custom = false) {
   const title = document.createElement("strong");
   title.textContent = definition.title;
   const status = document.createElement("small");
-  status.textContent = locked ? "尚未解锁" : custom ? "社区自定义关卡" : currentSave().completed.includes(definition.key) ? "已通关" : definition.subtitle;
+  status.textContent = locked ? "尚未解锁" : custom
+    ? (definition.author ? `作者：${definition.author}` : "社区自定义关卡")
+    : currentSave().completed.includes(definition.key) ? "已通关" : definition.subtitle;
   button.append(title, status);
-  if (!locked) button.addEventListener("click", () => startLevel(definition.key));
+  if (custom && definition.description) {
+    const description = document.createElement("small");
+    description.className = "level-card-description";
+    description.textContent = definition.description;
+    button.append(description);
+  }
+  if (!locked) button.addEventListener("click", () => transitionScreen(() => startLevel(definition.key)));
   return button;
 }
 
@@ -4102,6 +5374,28 @@ function showLevelSelect(tab = "story") {
   levelMessage.textContent = "按顺序通关剧情路线；自定义关卡独立保存。";
 }
 
+let screenTransitionBusy = false;
+function transitionScreen(change) {
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    change();
+    return;
+  }
+  if (screenTransitionBusy) return;
+  screenTransitionBusy = true;
+  screenTransition.classList.remove("is-revealing");
+  screenTransition.classList.add("is-covering");
+  window.setTimeout(() => {
+    try { change(); } finally {
+      screenTransition.classList.remove("is-covering");
+      screenTransition.classList.add("is-revealing");
+      window.setTimeout(() => {
+        screenTransition.classList.remove("is-revealing");
+        screenTransitionBusy = false;
+      }, 150);
+    }
+  }, 120);
+}
+
 function showTitleScreen() {
   loadRequestId += 1;
   mapReady = false;
@@ -4115,6 +5409,7 @@ function showTitleScreen() {
   editorScreen.hidden = true;
   deathScreen.hidden = true;
   shopScreen.hidden = true;
+  workshopScreen.hidden = true;
   gameOver = false;
   paused = false;
   settingsOpen = false;
@@ -4126,6 +5421,8 @@ function showTitleScreen() {
   startScreen.classList.remove("is-loading");
   startMessage.textContent = "ESCAPE FROM THE MOON";
   menuButton.hidden = true;
+  returnEditorButton.hidden = true;
+  editorPreviewActive = false;
   stateLabel.textContent = "TITLE";
   updateHudTester();
   drawLoading("SUPER KAGUYA");
@@ -4145,20 +5442,24 @@ async function startLevel(levelKey) {
   try {
     const loaded = definition.map ? loadMapData(definition.map, requestId) : await loadMap(definition.url, requestId);
     if (!loaded) return;
+    if (!(await ensureWorkshopDependencies(activeMapData))) {
+      mapReady = false;
+      startScreen.classList.remove("is-loading");
+      showLevelSelect(definition.map ? "custom" : "story");
+      levelMessage.textContent = "已取消安装关卡依赖。";
+      return;
+    }
+    const activeProperties = tiledProperties(activeMapData?.properties);
+    levelStartsFire = definition.startsFire === true || propertyBoolean(activeProperties.startsFire, false)
+      || definition.startsPowered === true || propertyBoolean(activeProperties.startsPowered, false);
+    levelStartsBig = definition.startsBig === true || propertyBoolean(activeProperties.startsBig, false) || levelStartsFire;
     activeLevelKey = levelKey;
     resetLevel();
-    const activeProperties = tiledProperties(activeMapData?.properties);
-    const startsFire = definition.startsFire === true || propertyBoolean(activeProperties.startsFire, false)
-      || definition.startsPowered === true || propertyBoolean(activeProperties.startsPowered, false);
-    const startsBig = definition.startsBig === true || propertyBoolean(activeProperties.startsBig, false) || startsFire;
-    if (startsBig) {
-      player.size = "big";
-    }
-    player.fire = startsFire;
     updateHudTester();
     startScreen.classList.remove("is-loading");
     startScreen.hidden = true;
     menuButton.hidden = false;
+    returnEditorButton.hidden = !editorPreviewActive;
     stateLabel.textContent = activeStory ? "STORY" : "IDLE";
   } catch (error) {
     if (requestId !== loadRequestId) return;
@@ -4205,17 +5506,19 @@ function completeLevel() {
   stateLabel.textContent = "COURSE CLEAR";
 }
 
-document.querySelector("#start-game").addEventListener("click", showLevelSelect);
-document.querySelector("#level-back").addEventListener("click", showTitleScreen);
-document.querySelector("#complete-home").addEventListener("click", showTitleScreen);
+document.querySelector("#start-game").addEventListener("click", () => transitionScreen(() => showLevelSelect()));
+document.querySelector("#level-back").addEventListener("click", () => transitionScreen(showTitleScreen));
+document.querySelector("#complete-home").addEventListener("click", () => transitionScreen(showTitleScreen));
 document.querySelector("#complete-next").addEventListener("click", () => {
-  const currentIndex = levelDefinitions.findIndex((item) => item.key === activeLevelKey);
-  if (currentIndex < 0) {
-    showLevelSelect("custom");
-    return;
-  }
-  const next = levelDefinitions[currentIndex + 1];
-  if (next && isUnlocked(next)) startLevel(next.key); else showLevelSelect();
+  transitionScreen(() => {
+    const currentIndex = levelDefinitions.findIndex((item) => item.key === activeLevelKey);
+    if (currentIndex < 0) {
+      showLevelSelect("custom");
+      return;
+    }
+    const next = levelDefinitions[currentIndex + 1];
+    if (next && isUnlocked(next)) startLevel(next.key); else showLevelSelect();
+  });
 });
 document.querySelectorAll(".tab-button").forEach((button) => button.addEventListener("click", () => renderLevelList(button.dataset.tab)));
 
@@ -4241,7 +5544,7 @@ document.querySelector("#save-import").addEventListener("change", async (event) 
     const custom = data.custom.filter((item) => {
       try { validateMap(item?.map); return true; } catch { return false; }
     });
-    writeSave({ completed: data.completed.filter((key) => typeof key === "string"), custom });
+    if (!writeSave({ completed: data.completed.filter((key) => typeof key === "string"), custom })) throw new Error("Browser storage quota exceeded");
     renderLevelList(); levelMessage.textContent = "存档已导入";
   } catch (error) { levelMessage.textContent = "存档导入失败"; console.error(error); }
   event.target.value = "";
@@ -4251,20 +5554,32 @@ document.querySelector("#import-map").addEventListener("change", async (event) =
   try {
     const map = await readUploadedJson(event.target.files[0]);
     validateMap(map);
+    if (!(await ensureWorkshopDependencies(map))) throw new Error("Workshop dependency installation cancelled");
     const save = currentSave();
     const properties = tiledProperties(map.properties);
     const key = `custom-${Date.now()}`;
-    save.custom.push({ key, title: String(properties.title || event.target.files[0].name.replace(/\.json$/i, "")).slice(0, 40), subtitle: "导入关卡", startsPowered: properties.startsPowered === true || properties.startsPowered === "true", map });
-    writeSave(save); renderLevelList("custom"); levelMessage.textContent = "关卡已导入";
+    save.custom.push({
+      key,
+      title: String(properties.title || event.target.files[0].name.replace(/\.json$/i, "")).slice(0, 40),
+      author: String(properties.author || "").slice(0, 40),
+      description: String(properties.description || "").slice(0, 240),
+      subtitle: "导入关卡",
+      startsBig: propertyBoolean(properties.startsBig, false),
+      startsFire: propertyBoolean(properties.startsFire, false),
+      startsPowered: propertyBoolean(properties.startsPowered, false),
+      map,
+    });
+    if (!writeSave(save)) throw new Error("Browser storage quota exceeded");
+    renderLevelList("custom"); levelMessage.textContent = "关卡已导入并保存到本机";
   } catch (error) { levelMessage.textContent = "关卡导入失败"; console.error(error); }
   event.target.value = "";
 });
 
 const editorTypes = [
   ["select", "选择"], ["ground", "地面"], ["brick", "砖块"], ["question", "幸运"], ["food", "寿司"],
-  ["enemy", "敌人"], ["boss", "BOSS"], ["platform", "移动平台"], ["oneWay", "单向平台"], ["falling", "坠落平台"],
+  ["key", "月钥"], ["enemy", "敌人"], ["boss", "BOSS"], ["platform", "移动平台"], ["oneWay", "单向平台"], ["falling", "坠落平台"],
   ["linked", "联动升降"], ["warp", "月井传送"], ["mirror", "镜像短传"], ["gravity", "月相机关"], ["shop", "商店方块"],
-  ["area", "区域边界"], ["lowGravity", "低重力区"], ["rift", "月蚀裂隙"], ["checkpoint", "检查点"],
+  ["area", "镜头背景区"], ["lowGravity", "低重力区"], ["barrier", "空气墙"], ["rift", "月蚀裂隙"], ["checkpoint", "检查点"],
   ["portal", "通关月门"], ["spawn", "出生点"], ["story", "剧情"], ["erase", "擦除"],
 ];
 const EDITOR_DEFAULT_COLUMNS = 36;
@@ -4275,6 +5590,7 @@ const EDITOR_ROWS = 9;
 const EDITOR_MIN_ROWS = 9;
 const EDITOR_MAX_ROWS = 64;
 const EDITOR_CELL = 32;
+const EDITOR_REGION_TYPES = new Set(["area", "lowGravity", "barrier"]);
 let editorObjectSerial = 1;
 
 function nextEditorUid() {
@@ -4323,14 +5639,15 @@ function defaultEditorProperties(type) {
     linked: { group: "lift-a", sign: 1, length: 3, range: 3, speed: 58 },
     oneWay: { length: 3 },
     falling: { length: 3, delay: 0.7, respawn: 3 },
-    warp: { channel: editorWarpChannel?.value || "moon-well-a", direction: editorWarpDirection?.value || "down", requiresInput: editorWarpInput?.checked !== false },
-    mirror: { channel: "mirror-a" },
+    warp: { channel: editorWarpChannel?.value || "moon-well-a", direction: editorWarpDirection?.value || "down", requiresInput: editorWarpInput?.checked !== false, targetUid: "", bidirectional: true, lockEnabled: false, requiresBoss: false, unlockText: "", requiredEnemyUids: [], requiredKeyUids: [] },
+    mirror: { channel: "mirror-a", targetUid: "", bidirectional: true, lockEnabled: false, requiresBoss: false, unlockText: "", requiredEnemyUids: [], requiredKeyUids: [] },
     gravity: {},
     shop: { items: "default" },
     area: { width: 16, height: 9, background: "lunar", name: "MOON AREA", transition: "smooth" },
-    lowGravity: { width: 6, height: 5, gravityScale: 0.35, impulse: 215, drag: 1.5 },
+    lowGravity: { width: 6, height: 5, gravityScale: 0.35, jumpScale: 1.35, impulse: 215, drag: 1.5 },
+    barrier: { width: 1, height: 3 },
     rift: { length: 4, damage: 20, interval: 0.8 },
-    portal: { requiresBoss: false },
+    portal: { lockEnabled: false, requiresBoss: false, unlockText: "", requiredEnemyUids: [], requiredKeyUids: [] },
   };
   return { ...(defaults[type] || {}) };
 }
@@ -4356,8 +5673,112 @@ const editorState = {
   selectedStoryUid: null,
   selectedObjectUid: null,
   cameraPickStep: null,
+  regionDraft: null,
+  courseKey: null,
   storyDraft: createEditorStoryDraft(),
 };
+let editorDirty = false;
+let editorDraftLoaded = false;
+let editorDraftTimer = null;
+let editorPreviewActive = false;
+
+function editorFormSnapshot() {
+  return {
+    name: document.querySelector("#editor-name").value,
+    author: document.querySelector("#editor-author").value,
+    description: document.querySelector("#editor-description").value,
+    background: document.querySelector("#editor-background").value,
+    playerArt: document.querySelector("#editor-player-art").value,
+    enemySpeed: document.querySelector("#editor-enemy-speed").value,
+    timeLimit: document.querySelector("#editor-time-limit").value,
+    startingScore: document.querySelector("#editor-start-score").value,
+    startsBig: document.querySelector("#editor-start-big").checked,
+    startsFire: document.querySelector("#editor-start-fire").checked,
+  };
+}
+
+function persistEditorDraft() {
+  clearTimeout(editorDraftTimer);
+  editorDraftTimer = null;
+  try {
+    const draft = {
+      version: 2,
+      savedAt: Date.now(),
+      dirty: editorDirty,
+      columns: editorState.columns,
+      rows: editorState.rows,
+      objects: editorState.objects,
+      storyDraft: editorState.storyDraft,
+      courseKey: editorState.courseKey,
+      form: editorFormSnapshot(),
+    };
+    localStorage.setItem(EDITOR_DRAFT_KEY, JSON.stringify(draft));
+    editorScreen.dataset.draftSavedAt = String(draft.savedAt);
+    editorScreen.dataset.draftDirty = String(draft.dirty);
+    editorScreen.dataset.draftCourseKey = draft.courseKey || "";
+    return true;
+  } catch (error) {
+    console.error("Unable to save editor draft", error);
+    return false;
+  }
+}
+
+function markEditorDirty() {
+  editorDirty = true;
+  clearTimeout(editorDraftTimer);
+  editorDraftTimer = setTimeout(persistEditorDraft, 350);
+}
+
+function applyEditorFormSnapshot(form = {}) {
+  document.querySelector("#editor-name").value = String(form.name || "自定义月都路线").slice(0, 40);
+  document.querySelector("#editor-author").value = String(form.author || "").slice(0, 40);
+  document.querySelector("#editor-description").value = String(form.description || "").slice(0, 240);
+  document.querySelector("#editor-background").value = ["lunar", "dawn", "night"].includes(form.background) ? form.background : "lunar";
+  document.querySelector("#editor-player-art").value = String(form.playerArt || "").slice(0, 500);
+  document.querySelector("#editor-enemy-speed").value = String(clampNumber(form.enemySpeed, 0, 4, .32));
+  document.querySelector("#editor-time-limit").value = String(clampNumber(form.timeLimit, 0, 7200, 300));
+  document.querySelector("#editor-start-score").value = String(clampNumber(form.startingScore, 0, 999999, 0));
+  document.querySelector("#editor-start-big").checked = Boolean(form.startsBig || form.startsFire);
+  document.querySelector("#editor-start-fire").checked = Boolean(form.startsFire);
+}
+
+function restoreEditorDraft() {
+  if (editorDraftLoaded) return false;
+  editorDraftLoaded = true;
+  try {
+    const draft = JSON.parse(localStorage.getItem(EDITOR_DRAFT_KEY) || "null");
+    if (!draft || draft.version !== 2 || !Array.isArray(draft.objects)) return false;
+    const validTypes = new Set(editorTypes.map(([type]) => type).filter((type) => !["select", "erase"].includes(type)));
+    const columns = Math.max(EDITOR_MIN_COLUMNS, Math.min(EDITOR_MAX_COLUMNS, Number(draft.columns) || EDITOR_DEFAULT_COLUMNS));
+    const rows = Math.max(EDITOR_MIN_ROWS, Math.min(EDITOR_MAX_ROWS, Number(draft.rows) || EDITOR_ROWS));
+    const objects = draft.objects.slice(0, 6000).filter((item) => item && validTypes.has(item.type)
+      && typeof item.uid === "string" && Number.isFinite(Number(item.x)) && Number.isFinite(Number(item.y)))
+      .map((item) => ({
+        ...item,
+        x: Math.max(0, Math.min(columns - 1, Math.floor(Number(item.x)))),
+        y: Math.max(0, Math.min(rows - 1, Math.floor(Number(item.y)))),
+        properties: item.properties && typeof item.properties === "object" ? { ...item.properties } : defaultEditorProperties(item.type),
+        ...(item.type === "story" ? { story: cloneEditorStory(item.story) } : {}),
+      }));
+    if (!objects.length) return false;
+    editorState.columns = columns;
+    editorState.rows = rows;
+    editorState.objects = objects;
+    editorState.storyDraft = cloneEditorStory(draft.storyDraft);
+    editorState.courseKey = typeof draft.courseKey === "string" ? draft.courseKey : null;
+    editorState.selectedObjectUid = null;
+    editorState.selectedStoryUid = null;
+    editorState.regionDraft = null;
+    applyEditorFormSnapshot(draft.form);
+    const maximumSerial = objects.reduce((maximum, item) => Math.max(maximum, Number(item.uid.match(/(\d+)$/)?.[1]) || 0), 0);
+    editorObjectSerial = Math.max(editorObjectSerial, maximumSerial + 1);
+    editorDirty = draft.dirty !== false;
+    return true;
+  } catch (error) {
+    console.error("Unable to restore editor draft", error);
+    return false;
+  }
+}
 
 function editorObjectEndColumn(item) {
   if (item.type === "portal") return item.x + 3;
@@ -4366,6 +5787,7 @@ function editorObjectEndColumn(item) {
   if (["mirror", "gravity", "shop"].includes(item.type)) return item.x + Math.max(1, Math.ceil((item.type === "shop" ? 2 : 1)));
   if (item.type === "area") return item.x + Math.max(16, Number(item.properties?.width) || 16);
   if (item.type === "lowGravity") return item.x + Math.max(1, Number(item.properties?.width) || 1);
+  if (item.type === "barrier") return item.x + Math.max(1, Number(item.properties?.width) || 1);
   if (item.type === "story") return item.x + (item.story.trigger === "start" ? 1 : item.story.width);
   return item.x + 1;
 }
@@ -4414,6 +5836,7 @@ function resizeEditorRows(requestedRows) {
   if (spawn?.y === oldBottom - 1) spawn.y = newBottom - 1;
   if (portalItem?.y === oldBottom - 1) portalItem.y = newBottom - 1;
   editorState.rows = rows;
+  markEditorDirty();
   editorMessage.textContent = `关卡高度已设为 ${rows} 格。`;
   configureEditorCanvas(true);
   return true;
@@ -4449,6 +5872,7 @@ function resizeEditorColumns(requestedColumns) {
   }
   if (edgePortal) edgePortal.x = columns - 4;
   editorState.columns = columns;
+  markEditorDirty();
   editorMessage.textContent = `关卡长度已设为 ${columns} 格。`;
   configureEditorCanvas(true);
   if (columns > previousColumns) {
@@ -4505,33 +5929,119 @@ const editorPropertySchemas = {
     ["channel", "通道名称", "text", { maxlength: 48 }],
     ["direction", "进入方向", "select", [["down", "向下"], ["up", "向上"], ["left", "向左"], ["right", "向右"]]],
     ["requiresInput", "需要按键触发", "checkbox"],
+    ["bidirectional", "自动建立返回路线", "checkbox"],
+    ["lockEnabled", "启用目标锁", "checkbox"],
+    ["requiresBoss", "需要击败全部 BOSS", "checkbox"],
+    ["unlockText", "附加解锁说明", "textarea", { maxlength: 160 }],
   ],
-  mirror: [["channel", "镜像通道名称", "text", { maxlength: 48 }]],
+  mirror: [
+    ["channel", "镜像通道名称", "text", { maxlength: 48 }],
+    ["bidirectional", "自动建立返回路线", "checkbox"],
+    ["lockEnabled", "启用目标锁", "checkbox"],
+    ["requiresBoss", "需要击败全部 BOSS", "checkbox"],
+    ["unlockText", "附加解锁说明", "textarea", { maxlength: 160 }],
+  ],
   shop: [["items", "商品组合", "select", [["default", "全部商品"], ["power", "能力商品"], ["recovery", "恢复商品"]]]],
   area: [
     ["name", "区域名称", "text", { maxlength: 48 }],
-    ["width", "区域宽度（格，至少 16）", "number", { min: 16, max: 128, step: 1 }],
+    ["width", "区域宽度（格，至少 16）", "number", { min: 16, max: 512, step: 1 }],
     ["height", "区域高度（格）", "number", { min: 9, max: 64, step: 1 }],
     ["background", "区域背景", "select", [["lunar", "古代月都"], ["dawn", "桃色黎明"], ["night", "深夜月面"]]],
     ["transition", "越过画布边界", "select", [["smooth", "平滑跟随"], ["edge", "按区域边界切换"]]],
   ],
   lowGravity: [
-    ["width", "区域宽度（格）", "number", { min: 1, max: 32, step: 1 }],
-    ["height", "区域高度（格）", "number", { min: 1, max: 9, step: 1 }],
-    ["gravityScale", "重力倍率", "number", { min: 0.12, max: 0.8, step: 0.01 }],
-    ["impulse", "浮跃力度", "number", { min: 80, max: 420, step: 5 }],
+    ["width", "区域宽度（格）", "number", { min: 1, max: 512, step: 1 }],
+    ["height", "区域高度（格）", "number", { min: 1, max: 64, step: 1 }],
+    ["gravityScale", "重力倍率", "number", { min: 0.03, max: 1.5, step: 0.01 }],
+    ["jumpScale", "跳跃提升倍率", "number", { min: 0.25, max: 4, step: 0.05 }],
+    ["impulse", "空中浮跃力度", "number", { min: 80, max: 420, step: 5 }],
     ["drag", "空气阻力", "number", { min: 0, max: 8, step: 0.1 }],
+  ],
+  barrier: [
+    ["width", "宽度（格）", "number", { min: 1, max: 512, step: 1 }],
+    ["height", "高度（格）", "number", { min: 1, max: 64, step: 1 }],
   ],
   rift: [
     ["length", "裂隙长度（格）", "number", { min: 1, max: 32, step: 1 }],
     ["damage", "每次伤害", "number", { min: 1, max: 100, step: 1 }],
     ["interval", "伤害间隔（秒）", "number", { min: 0.1, max: 5, step: 0.1 }],
   ],
-  portal: [["requiresBoss", "需要击败 BOSS", "checkbox"]],
+  portal: [
+    ["lockEnabled", "启用目标锁", "checkbox"],
+    ["requiresBoss", "需要击败全部 BOSS", "checkbox"],
+    ["unlockText", "附加解锁说明", "textarea", { maxlength: 160 }],
+  ],
 };
 
 function selectedEditorObject() {
   return editorState.objects.find((item) => item.uid === editorState.selectedObjectUid) || null;
+}
+
+const EDITOR_TUTORIALS = {
+  select: ["选择与检查", "点击组件后在左栏修改属性。门的传送目标、锁定目标和组件 ID 都在这里设置。"],
+  ground: ["地面", "实体地形。角色、敌人和道具都会与它碰撞；连续绘制可快速铺设长地面。"],
+  brick: ["砖块", "可设置能否从下方破坏、顶出何种物品及可触发次数。Debug 会显示掉落物和剩余次数。"],
+  question: ["幸运方块", "从下方顶击或下落砸击触发。可指定寿司、松饼/蛋包饭、月牙无敌及触发次数。"],
+  food: ["固定寿司", "固定位置的积分收集物。运行时还会在合适地面上生成间隔至少五格的随机寿司。"],
+  key: ["月钥", "固定位置、带独立 ID 的解锁目标。门可以同时要求多把钥匙，也允许多扇门共享同一把钥匙。"],
+  enemy: ["敌人", "可设置生命、方向、外观和巡逻半径。每个敌人都有独立 ID，可作为剧情锚点或门锁击败目标。"],
+  boss: ["BOSS", "多阶段敌人，具备顶部血条、投射物与伤害飘字。可按 ID 单独作为门锁目标。"],
+  platform: ["移动平台", "设置水平/垂直轴、长度、移动范围和速度。范围以起点为中心往返。"],
+  oneWay: ["单向平台", "角色可从下方穿过，只会从重力方向落到平台表面。"],
+  falling: ["坠落平台", "踩上后延迟坠落，离开世界后按设定时间复原。"],
+  linked: ["联动升降", "同组平台共享位移；A/B 符号相反，可制作配重、电梯和机关谜题。"],
+  warp: ["月井传送", "可按通道自动连接或指定目标 ID，支持单向/双向。启用目标锁后可要求敌人和钥匙。"],
+  mirror: ["镜像短传", "接触即传送到指定镜像门，适合短距离路线切换；同样支持方向关系和目标锁。"],
+  gravity: ["月相机关", "靠近按交互键切换重力方向。角色画面和碰撞会同步倒置。"],
+  shop: ["商店方块", "靠近交互后使用积分购买能力或恢复生命。商品组合可在属性中选择。"],
+  area: ["镜头与背景区域", "非实体矩形，只决定区域背景、纵向镜头范围和边界切换方式，不会阻挡角色，也不触发剧情。"],
+  lowGravity: ["低重力区", "非实体矩形。重力倍率控制降落速度，跳跃倍率独立控制跳高，空中浮跃和阻力可继续微调。"],
+  barrier: ["空气墙", "透明实体矩形。游戏中不可见且会阻挡角色/敌人；编辑器和 Debug 中以红色屏障框显示。"],
+  rift: ["月蚀裂隙", "月球主题环境伤害区域，可设置长度、单次伤害和伤害间隔。"],
+  checkpoint: ["检查点", "触碰后更新复活位置，并保存当时已获得的钥匙与已击败目标，避免解谜进度软锁。"],
+  portal: ["通关月门", "触碰后完成关卡。可启用目标锁并指定敌人/BOSS、多把月钥；护盾月牙会展示钥匙进度。"],
+  spawn: ["出生点", "玩家进入和完整重开关卡时的起点。每张关卡只保留一个。"],
+  story: ["剧情事件", "设置开场或区域触发、气泡锚点、目标对象，以及不移动/坐标/对象吸附三种镜头模式。"],
+  erase: ["擦除", "点击或拖动删除组件；也可用右键直接擦除。被删除的目标会自动从剧情和门锁引用中移除。"],
+};
+
+function updateEditorTutorial(type = selectedEditorObject()?.type || editorState.tool) {
+  if (!editorTutorial) return;
+  const [title, text] = EDITOR_TUTORIALS[type] || ["社区组件", "此组件来自已安装内容包；请查看内容包说明和所声明的能力。"];
+  const heading = document.createElement("strong");
+  heading.textContent = title;
+  const body = document.createElement("p");
+  body.textContent = text;
+  editorTutorial.replaceChildren(heading, body);
+  editorTutorial.dataset.type = type;
+}
+
+function createEditorUnlockChecklist(item, propertyName, title, candidates) {
+  const group = document.createElement("div");
+  group.className = "editor-target-group";
+  const heading = document.createElement("strong");
+  heading.textContent = title;
+  group.append(heading);
+  const selected = new Set(Array.isArray(item.properties?.[propertyName]) ? item.properties[propertyName] : []);
+  if (!candidates.length) {
+    const empty = document.createElement("small");
+    empty.textContent = "画布中还没有可选目标";
+    group.append(empty);
+    return group;
+  }
+  for (const candidate of candidates) {
+    const label = document.createElement("label");
+    label.className = "editor-target-option";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = selected.has(candidate.uid);
+    checkbox.dataset.unlockList = propertyName;
+    checkbox.dataset.unlockTargetUid = candidate.uid;
+    const kind = candidate.type === "boss" ? "BOSS" : candidate.type === "key" ? "月钥" : "敌人";
+    label.append(checkbox, `${kind} ${candidate.uid} @ ${candidate.x + 1},${candidate.y + 1}`);
+    group.append(label);
+  }
+  return group;
 }
 
 function renderEditorObjectInspector() {
@@ -4539,6 +6049,7 @@ function renderEditorObjectInspector() {
   editorObjectFields.hidden = !item || item.type === "story";
   if (!item || item.type === "story") {
     editorObjectForm.replaceChildren();
+    updateEditorTutorial(item?.type || editorState.tool);
     return;
   }
   const id = document.createElement("p");
@@ -4546,7 +6057,9 @@ function renderEditorObjectInspector() {
   id.textContent = `ID ${item.uid} | ${item.type} | X ${item.x + 1}, Y ${item.y + 1}`;
   const controls = (editorPropertySchemas[item.type] || []).map(([key, labelText, type, options]) => {
     const label = document.createElement("label");
-    const control = type === "select" ? document.createElement("select") : document.createElement("input");
+    const control = type === "select" ? document.createElement("select")
+      : type === "textarea" ? document.createElement("textarea")
+        : document.createElement("input");
     if (type === "select") {
       for (const [value, textValue] of options) {
         const option = document.createElement("option"); option.value = value; option.textContent = textValue; control.append(option);
@@ -4557,7 +6070,7 @@ function renderEditorObjectInspector() {
       control.checked = Boolean(item.properties?.[key]);
       label.className = "editor-check";
     } else {
-      control.type = type;
+      if (type !== "textarea") control.type = type;
       control.value = item.properties?.[key] ?? "";
       if (options) Object.entries(options).forEach(([attribute, value]) => control.setAttribute(attribute, value));
     }
@@ -4566,15 +6079,66 @@ function renderEditorObjectInspector() {
     else label.append(labelText, control);
     return label;
   });
-  editorObjectForm.replaceChildren(id, ...controls);
+  const extras = [];
+  if (["warp", "mirror"].includes(item.type)) {
+    const label = document.createElement("label");
+    const select = document.createElement("select");
+    select.dataset.editorProperty = "targetUid";
+    const empty = document.createElement("option");
+    empty.value = ""; empty.textContent = "按通道自动连接"; select.append(empty);
+    for (const candidate of editorState.objects.filter((entry) => entry.type === item.type && entry.uid !== item.uid)) {
+      const option = document.createElement("option");
+      option.value = candidate.uid;
+      option.textContent = `${candidate.uid} / X ${candidate.x + 1}, Y ${candidate.y + 1}`;
+      select.append(option);
+    }
+    select.value = item.properties?.targetUid || "";
+    label.append("传送目标 ID", select);
+    extras.push(label);
+  }
+  if (["warp", "mirror", "portal"].includes(item.type)) {
+    extras.push(createEditorUnlockChecklist(
+      item,
+      "requiredEnemyUids",
+      "指定击败目标",
+      editorState.objects.filter((entry) => ["enemy", "boss"].includes(entry.type)),
+    ));
+    extras.push(createEditorUnlockChecklist(
+      item,
+      "requiredKeyUids",
+      "指定月钥",
+      editorState.objects.filter((entry) => entry.type === "key"),
+    ));
+  }
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "editor-delete-object";
+  remove.dataset.deleteEditorObject = item.uid;
+  remove.textContent = "删除此组件";
+  extras.push(remove);
+  editorObjectForm.replaceChildren(id, ...controls, ...extras);
+  updateEditorTutorial(item.type);
+}
+
+function compatibleWorkshopEditorEntries() {
+  return Object.values(installedWorkshopPackages).flatMap((entry) => {
+    if (entry.type !== "item" || entry.content?.kind !== "item-definition") return [];
+    const adapter = { "moon-key": "key" }[entry.content.item?.id];
+    return adapter ? [[adapter, `工坊：${entry.content.item?.editor?.label || entry.id}`, entry.id]] : [];
+  });
 }
 
 function renderEditorPalette() {
-  editorPalette.replaceChildren(...editorTypes.map(([type, label]) => {
+  const entries = [...editorTypes, ...compatibleWorkshopEditorEntries()];
+  editorPalette.replaceChildren(...entries.map(([type, label, packageId]) => {
     const button = document.createElement("button"); button.type = "button";
     const preview = document.createElement("canvas"); preview.className = "palette-preview"; preview.width = 32; preview.height = 32;
     drawEditorPalettePreview(preview, type);
     button.append(preview, label);
+    if (packageId) {
+      button.dataset.workshopPackage = packageId;
+      button.title = `${packageId}（声明式适配器：${type}）`;
+    }
     button.classList.toggle("is-active", editorState.tool === type);
     button.addEventListener("click", () => {
       editorState.tool = type;
@@ -4590,6 +6154,7 @@ function renderEditorPalette() {
   editorStoryFields.closest(".editor-sidebar").classList.toggle("is-story-mode", editorState.tool === "story");
   if (editorState.tool === "story") applyEditorStoryDraftToForm();
   renderEditorObjectInspector();
+  if (!selectedEditorObject()) updateEditorTutorial(editorState.tool);
 }
 
 function drawEditorPalettePreview(preview, type) {
@@ -4617,6 +6182,8 @@ function drawEditorPalettePreview(preview, type) {
     const food = foodSprites[0];
     if (food?.complete && food.naturalWidth) previewContext.drawImage(food, 0, 0, 16, 16, 5, 7, 22, 22);
     else drawSushiFallback(previewContext, 4, 7, 24);
+  } else if (type === "key") {
+    drawMoonKey(previewContext, 16, 28, 1, true);
   } else if (type === "enemy" && enemySprite.complete && enemySprite.naturalWidth) {
     previewContext.drawImage(enemySprite, 0, 0, 32, 32, 0, 0, 32, 32);
   } else if (type === "spawn" && playerSprite.complete && playerSprite.naturalWidth) {
@@ -4663,6 +6230,10 @@ function drawEditorPalettePreview(preview, type) {
     previewContext.fillStyle = "rgba(102,184,255,.35)"; previewContext.fillRect(2, 2, 28, 28);
     previewContext.fillStyle = "#9de7ea"; previewContext.fillRect(7, 22, 2, 2); previewContext.fillRect(16, 14, 3, 3); previewContext.fillRect(24, 7, 2, 2);
     previewContext.strokeStyle = "#9de7ea"; previewContext.strokeRect(2.5, 2.5, 27, 27);
+  } else if (type === "barrier") {
+    previewContext.fillStyle = "rgba(255,79,113,.22)"; previewContext.fillRect(3, 2, 26, 28);
+    previewContext.strokeStyle = "#ff4f71"; previewContext.setLineDash([4, 3]); previewContext.strokeRect(3.5, 2.5, 25, 27); previewContext.setLineDash([]);
+    previewContext.fillStyle = "#fff4ef"; previewContext.fillRect(8, 7, 3, 18); previewContext.fillRect(21, 7, 3, 18); previewContext.fillRect(11, 14, 10, 3);
   } else if (type === "rift") {
     previewContext.fillStyle = "#17142f"; previewContext.fillRect(1, 17, 30, 12);
     previewContext.fillStyle = "#ff4f91"; previewContext.fillRect(1, 14, 8, 5); previewContext.fillRect(11, 17, 8, 4); previewContext.fillRect(21, 13, 10, 6);
@@ -4737,6 +6308,22 @@ function drawEditorPortalShape(x, y) {
   drawPortalFrame(editorContext, x, y - 96, 96, 128, Math.floor(questionPhase * 8) % 2);
 }
 
+function drawEditorUnlockShield(item, left, top, width, height) {
+  if (!item.properties?.lockEnabled) return;
+  const enemyTargets = [...(item.properties.requiredEnemyUids || [])];
+  if (item.properties.requiresBoss) enemyTargets.push("all-bosses");
+  drawUnlockShield(editorContext, left, top, width, height, {
+    lockEnabled: true,
+    requiredEnemyIds: enemyTargets,
+    requiredKeyIds: item.properties.requiredKeyUids || [],
+    missingEnemyIds: [],
+    missingKeyIds: [],
+    lockMalformed: false,
+    requiresBoss: false,
+    lockPulse: 0,
+  });
+}
+
 function drawEditorObject(item) {
   const x = item.x * EDITOR_CELL;
   const y = item.y * EDITOR_CELL;
@@ -4747,6 +6334,8 @@ function drawEditorObject(item) {
     const food = foodSprites[0];
     if (food?.complete && food.naturalWidth) editorContext.drawImage(food, 0, 0, food.naturalWidth, food.naturalHeight, x + 2, y + 2, 28, 28);
     else drawSushiFallback(editorContext, x + 4, y + 5, 24);
+  } else if (item.type === "key") {
+    drawMoonKey(editorContext, x + 16, y + 31, 1, true);
   } else if (item.type === "enemy") {
     if (enemySprite.complete && enemySprite.naturalWidth) editorContext.drawImage(enemySprite, 0, 0, 32, 32, x - 16, y - 32, 64, 64);
   } else if (item.type === "boss") {
@@ -4777,10 +6366,12 @@ function drawEditorObject(item) {
     editorContext.fillStyle = "#7466dd"; editorContext.fillRect(x + 13, y - 24, 38, 56);
     editorContext.fillStyle = "#9de7ea"; editorContext.fillRect(x + 20, y - 15, 24, 47);
     editorContext.fillStyle = "#ffc65d"; editorContext.fillRect(x + 2, y - 36, 60, 12);
+    drawEditorUnlockShield(item, x + 8, y - 32, 48, 64);
   } else if (item.type === "mirror") {
     editorContext.fillStyle = "#24204e"; editorContext.fillRect(x, y - 16, 32, 48);
     editorContext.fillStyle = "#ff82bd"; editorContext.fillRect(x + 3, y - 13, 26, 42);
     editorContext.fillStyle = "#17142f"; editorContext.fillRect(x + 8, y - 9, 16, 34);
+    drawEditorUnlockShield(item, x, y - 16, 32, 48);
   } else if (item.type === "gravity") {
     editorContext.fillStyle = "#24204e"; editorContext.fillRect(x, y, 32, 48);
     editorContext.fillStyle = "#7466dd"; editorContext.fillRect(x + 3, y + 3, 26, 42);
@@ -4804,6 +6395,13 @@ function drawEditorObject(item) {
     editorContext.strokeStyle = "#9de7ea"; editorContext.setLineDash([8, 6]); editorContext.strokeRect(x + 1, y + 1, width - 2, height - 2); editorContext.setLineDash([]);
     editorContext.fillStyle = "rgba(157,231,234,.7)";
     for (let offset = 12; offset < width; offset += 35) editorContext.fillRect(x + offset, y + (offset * 3 % Math.max(8, height - 4)), 3, 3);
+  } else if (item.type === "barrier") {
+    const width = Math.max(1, Number(item.properties?.width) || 1) * EDITOR_CELL;
+    const height = Math.max(1, Number(item.properties?.height) || 1) * EDITOR_CELL;
+    editorContext.fillStyle = "rgba(255,79,113,.16)"; editorContext.fillRect(x, y, width, height);
+    editorContext.strokeStyle = "#ff4f71"; editorContext.setLineDash([8, 6]); editorContext.strokeRect(x + 1, y + 1, width - 2, height - 2); editorContext.setLineDash([]);
+    editorContext.fillStyle = "rgba(255,244,239,.65)";
+    for (let offset = 8; offset < width; offset += 20) editorContext.fillRect(x + offset, y + 4, 3, Math.max(1, height - 8));
   } else if (item.type === "rift") {
     const width = Math.max(1, Number(item.properties?.length) || 4) * EDITOR_CELL;
     editorContext.fillStyle = "#17142f"; editorContext.fillRect(x, y + 16, width, 16);
@@ -4813,7 +6411,10 @@ function drawEditorObject(item) {
     editorContext.fillStyle = "#7466dd"; editorContext.fillRect(x + 14, y - 16, 4, 48);
     editorContext.fillStyle = "#fff4ef"; editorContext.fillRect(x + 18, y - 11, 13, 10);
     editorContext.fillStyle = "#9de7ea"; editorContext.fillRect(x + 21, y - 8, 7, 4);
-  } else if (item.type === "portal") drawEditorPortalShape(x, y);
+  } else if (item.type === "portal") {
+    drawEditorPortalShape(x, y);
+    drawEditorUnlockShield(item, x, y - 96, 96, 128);
+  }
 }
 
 function drawEditorStory(item) {
@@ -4834,6 +6435,64 @@ function drawEditorStory(item) {
   editorContext.restore();
 }
 
+function drawEditorGateLinks() {
+  editorContext.save();
+  editorContext.lineWidth = 2;
+  editorContext.setLineDash([10, 7]);
+  for (const item of editorState.objects.filter((entry) => ["warp", "mirror"].includes(entry.type))) {
+    const channel = editorState.objects.filter((entry) => entry.type === item.type && entry.properties?.channel === item.properties?.channel);
+    const channelIndex = channel.indexOf(item);
+    const target = editorState.objects.find((entry) => entry.uid === item.properties?.targetUid && entry.type === item.type)
+      || (channel.length > 1 ? channel[(channelIndex + 1) % channel.length] : null);
+    if (!target) continue;
+    const color = item.type === "warp" ? "rgba(157,231,234,.86)" : "rgba(255,130,189,.86)";
+    const fromX = (item.x + (item.type === "warp" ? 1 : 0.5)) * EDITOR_CELL;
+    const fromY = (item.y + 0.25) * EDITOR_CELL;
+    const toX = (target.x + (target.type === "warp" ? 1 : 0.5)) * EDITOR_CELL;
+    const toY = (target.y + 0.25) * EDITOR_CELL;
+    editorContext.strokeStyle = color;
+    editorContext.fillStyle = color;
+    editorContext.beginPath(); editorContext.moveTo(fromX, fromY); editorContext.lineTo(toX, toY); editorContext.stroke();
+    const angle = Math.atan2(toY - fromY, toX - fromX);
+    editorContext.setLineDash([]);
+    editorContext.beginPath();
+    editorContext.moveTo(toX, toY);
+    editorContext.lineTo(toX - Math.cos(angle - .55) * 10, toY - Math.sin(angle - .55) * 10);
+    editorContext.lineTo(toX - Math.cos(angle + .55) * 10, toY - Math.sin(angle + .55) * 10);
+    editorContext.closePath(); editorContext.fill();
+    editorContext.setLineDash([10, 7]);
+  }
+  editorContext.restore();
+}
+
+function drawEditorUnlockLinks() {
+  const item = selectedEditorObject();
+  if (!item || !["warp", "mirror", "portal"].includes(item.type) || !item.properties?.lockEnabled) return;
+  const fromX = (item.x + (item.type === "portal" ? 1.5 : item.type === "warp" ? 1 : 0.5)) * EDITOR_CELL;
+  const fromY = item.y * EDITOR_CELL - (item.type === "portal" ? 32 : 4);
+  const groups = [
+    { uids: item.properties.requiredEnemyUids || [], color: "rgba(255,130,189,.78)" },
+    { uids: item.properties.requiredKeyUids || [], color: "rgba(255,240,156,.86)" },
+  ];
+  editorContext.save();
+  editorContext.lineWidth = 1.5;
+  editorContext.setLineDash([5, 5]);
+  for (const group of groups) {
+    editorContext.strokeStyle = group.color;
+    for (const uid of group.uids) {
+      const target = editorState.objects.find((candidate) => candidate.uid === uid);
+      if (!target) continue;
+      const toX = (target.x + 0.5) * EDITOR_CELL;
+      const toY = (target.y + 0.5) * EDITOR_CELL;
+      editorContext.beginPath();
+      editorContext.moveTo(fromX, fromY);
+      editorContext.lineTo(toX, toY);
+      editorContext.stroke();
+    }
+  }
+  editorContext.restore();
+}
+
 function renderEditor() {
   drawEditorBackground();
   editorContext.save();
@@ -4846,15 +6505,34 @@ function renderEditor() {
     editorContext.beginPath(); editorContext.moveTo(0, y + 0.5); editorContext.lineTo(editorGrid.width, y + 0.5); editorContext.stroke();
   }
   editorContext.restore();
-  editorState.objects.filter((item) => item.type !== "story").forEach(drawEditorObject);
+  drawEditorGateLinks();
+  drawEditorUnlockLinks();
+  editorState.objects.filter((item) => EDITOR_REGION_TYPES.has(item.type)).forEach(drawEditorObject);
+  editorState.objects.filter((item) => item.type !== "story" && !EDITOR_REGION_TYPES.has(item.type)).forEach(drawEditorObject);
   editorState.objects.filter((item) => item.type === "story").forEach(drawEditorStory);
+  if (editorState.regionDraft) {
+    const { start, current, type } = editorState.regionDraft;
+    const left = Math.min(start.x, current.x) * EDITOR_CELL;
+    const top = Math.min(start.y, current.y) * EDITOR_CELL;
+    const width = (Math.abs(current.x - start.x) + 1) * EDITOR_CELL;
+    const height = (Math.abs(current.y - start.y) + 1) * EDITOR_CELL;
+    editorContext.save();
+    editorContext.fillStyle = type === "area" ? "rgba(255,198,93,.12)"
+      : type === "barrier" ? "rgba(255,79,113,.18)" : "rgba(102,184,255,.18)";
+    editorContext.fillRect(left, top, width, height);
+    editorContext.strokeStyle = type === "area" ? "#ffc65d" : type === "barrier" ? "#ff4f71" : "#9de7ea";
+    editorContext.lineWidth = 3;
+    editorContext.setLineDash([8, 6]);
+    editorContext.strokeRect(left + 1.5, top + 1.5, width - 3, height - 3);
+    editorContext.restore();
+  }
   const selected = selectedEditorObject();
   if (selected && selected.type !== "story") {
     const left = selected.x * EDITOR_CELL;
     const top = selected.y * EDITOR_CELL;
     const width = Math.max(1, editorObjectEndColumn(selected) - selected.x) * EDITOR_CELL;
     const height = selected.type === "area" ? Math.max(9, Number(selected.properties?.height) || editorState.rows) * EDITOR_CELL
-      : selected.type === "lowGravity" ? Math.max(1, Number(selected.properties?.height) || 1) * EDITOR_CELL : EDITOR_CELL;
+      : ["lowGravity", "barrier"].includes(selected.type) ? Math.max(1, Number(selected.properties?.height) || 1) * EDITOR_CELL : EDITOR_CELL;
     editorContext.save(); editorContext.strokeStyle = "#fff09c"; editorContext.lineWidth = 3; editorContext.setLineDash([6, 4]);
     editorContext.strokeRect(left + 1.5, top + 1.5, width - 3, height - 3); editorContext.restore();
   }
@@ -4984,6 +6662,29 @@ function clearEditorStoryTargets(uid) {
   });
 }
 
+function clearEditorGateTargets(uid) {
+  for (const item of editorState.objects.filter((entry) => ["warp", "mirror", "portal"].includes(entry.type))) {
+    if (["warp", "mirror"].includes(item.type) && item.properties?.targetUid === uid) item.properties.targetUid = "";
+    if (!item.properties) continue;
+    item.properties.requiredEnemyUids = (item.properties.requiredEnemyUids || []).filter((targetUid) => targetUid !== uid);
+    item.properties.requiredKeyUids = (item.properties.requiredKeyUids || []).filter((targetUid) => targetUid !== uid);
+  }
+}
+
+function removeEditorObject(uid) {
+  const index = editorState.objects.findIndex((item) => item.uid === uid);
+  if (index < 0) return false;
+  clearEditorStoryTargets(uid);
+  clearEditorGateTargets(uid);
+  editorState.objects.splice(index, 1);
+  if (editorState.selectedObjectUid === uid) editorState.selectedObjectUid = null;
+  if (editorState.selectedStoryUid === uid) editorState.selectedStoryUid = null;
+  markEditorDirty();
+  renderEditorObjectInspector();
+  renderEditor();
+  return true;
+}
+
 function editorPoint(event) {
   const rect = editorGrid.getBoundingClientRect();
   return {
@@ -4997,12 +6698,13 @@ function editorItemAtPoint(point) {
   const contains = (item) => {
     if (item.type === "story") return point.x >= item.x && point.x < item.x + (item.story.trigger === "start" ? 1 : item.story.width);
     const end = editorObjectEndColumn(item);
-    const height = item.type === "area" ? Math.max(1, Number(item.properties?.height) || editorState.rows) : item.type === "lowGravity" ? Math.max(1, Number(item.properties?.height) || 1) : 1;
+    const height = item.type === "area" ? Math.max(1, Number(item.properties?.height) || editorState.rows)
+      : ["lowGravity", "barrier"].includes(item.type) ? Math.max(1, Number(item.properties?.height) || 1) : 1;
     return point.x >= item.x && point.x < end && point.y >= item.y && point.y < item.y + height;
   };
-  return objects.find((item) => !["area", "lowGravity", "story"].includes(item.type) && contains(item))
+  return objects.find((item) => item.type !== "story" && !EDITOR_REGION_TYPES.has(item.type) && contains(item))
     || objects.find((item) => item.type === "story" && contains(item))
-    || objects.find((item) => ["area", "lowGravity"].includes(item.type) && contains(item))
+    || objects.find((item) => EDITOR_REGION_TYPES.has(item.type) && contains(item))
     || null;
 }
 
@@ -5016,6 +6718,7 @@ function editAt(event) {
       step.cameraY = point.y * EDITOR_CELL + EDITOR_CELL / 2;
       syncSelectedEditorStory();
       editorMessage.textContent = `镜头中心已选在 X ${step.cameraX}, Y ${step.cameraY}。`;
+      markEditorDirty();
     }
     editorState.cameraPickStep = null;
     editorGrid.classList.remove("is-picking-camera");
@@ -5038,7 +6741,7 @@ function editAt(event) {
     renderEditor();
     return;
   }
-  if (["spawn", "enemy", "boss", "food", "mirror", "gravity", "shop"].includes(editorState.tool)) point.y = Math.min(point.y, editorState.rows - 2);
+  if (["spawn", "enemy", "boss", "food", "key", "mirror", "gravity", "shop"].includes(editorState.tool)) point.y = Math.min(point.y, editorState.rows - 2);
   if (editorState.tool === "checkpoint") point.y = Math.max(1, Math.min(point.y, editorState.rows - 2));
   if (["platform", "linked", "oneWay", "falling", "rift"].includes(editorState.tool)) {
     const length = Math.max(1, Number(defaultEditorProperties(editorState.tool).length) || 1);
@@ -5085,6 +6788,7 @@ function editAt(event) {
       editorState.objects.push(story);
       editorState.selectedStoryUid = story.uid;
       editorState.selectedObjectUid = null;
+      markEditorDirty();
     }
     renderEditor();
     return;
@@ -5092,30 +6796,31 @@ function editAt(event) {
 
   if (erasing) {
     const target = editorItemAtPoint(point);
-    const exact = target ? { item: target, index: editorState.objects.indexOf(target) } : null;
-    if (exact) {
-      if (exact.item.uid === editorState.selectedStoryUid) editorState.selectedStoryUid = null;
-      if (exact.item.uid === editorState.selectedObjectUid) editorState.selectedObjectUid = null;
-      clearEditorStoryTargets(exact.item.uid);
-      editorState.objects.splice(exact.index, 1);
-    }
+    if (target) removeEditorObject(target.uid);
   } else {
     if (editorState.tool === "spawn" || editorState.tool === "portal") {
-      editorState.objects.filter((item) => item.type === editorState.tool).forEach((item) => clearEditorStoryTargets(item.uid));
+      editorState.objects.filter((item) => item.type === editorState.tool).forEach((item) => {
+        clearEditorStoryTargets(item.uid);
+        clearEditorGateTargets(item.uid);
+      });
       editorState.objects = editorState.objects.filter((item) => item.type !== editorState.tool);
     }
-    const existing = editorState.objects.findIndex((item) => item.type !== "story" && item.x === point.x && item.y === point.y);
+    const existing = editorState.objects.findIndex((item) => item.type !== "story" && !EDITOR_REGION_TYPES.has(item.type) && item.x === point.x && item.y === point.y);
     if (existing >= 0 && editorState.objects[existing].type === editorState.tool) {
       editorState.selectedObjectUid = editorState.objects[existing].uid;
       renderEditorObjectInspector();
       renderEditor();
       return;
     }
-    if (existing >= 0 && editorState.objects[existing].type !== editorState.tool) clearEditorStoryTargets(editorState.objects[existing].uid);
+    if (existing >= 0 && editorState.objects[existing].type !== editorState.tool) {
+      clearEditorStoryTargets(editorState.objects[existing].uid);
+      clearEditorGateTargets(editorState.objects[existing].uid);
+    }
     const item = createEditorItem(editorState.tool, point);
     if (existing >= 0) editorState.objects.splice(existing, 1, item);
     else editorState.objects.push(item);
     editorState.selectedObjectUid = item.uid;
+    markEditorDirty();
   }
   renderEditorObjectInspector();
   renderEditor();
@@ -5131,10 +6836,6 @@ function ensureEditorRequiredObjects() {
     editorState.objects.push(createEditorItem("spawn", { x: 1, y: editorState.rows - 2 }));
     changed = true;
   }
-  if (!editorState.objects.some((item) => item.type === "portal")) {
-    editorState.objects.push(createEditorItem("portal", { x: editorState.columns - 4, y: editorState.rows - 2 }));
-    changed = true;
-  }
   if (changed) renderEditor();
 }
 
@@ -5145,6 +6846,7 @@ function editorMap() {
   let id = 1;
   const objects = [];
   const idByUid = new Map();
+  const objectByUid = new Map();
   for (const item of editorState.objects.filter((entry) => entry.type !== "story")) {
     const x = item.x * EDITOR_CELL; const y = item.y * EDITOR_CELL;
     const properties = { ...defaultEditorProperties(item.type), ...(item.properties || {}) };
@@ -5160,6 +6862,7 @@ function editorMap() {
       prop("hits", "int", Math.max(0, Number(properties.hits) || 0)),
     ]);
     else if (item.type === "food") created = object(id++, "Sushi", "FoodPickup", x + 16, y + 32, 0, 0);
+    else if (item.type === "key") created = object(id++, `Moon Key ${item.uid}`, "KeyPickup", x + 16, y + 32, 20, 28);
     else if (item.type === "enemy") created = object(id++, `Enemy ${item.uid}`, "Enemy", x + 16, y + 32, 0, 0, [
       prop("health", "int", Math.max(1, Number(properties.health) || 1)), prop("direction", "int", Number(properties.direction) < 0 ? -1 : 1),
       prop("variant", "string", String(properties.variant)), prop("patrolRange", "float", Math.max(0, Number(properties.patrolRange) || 0)),
@@ -5182,9 +6885,9 @@ function editorMap() {
       prop("delay", "float", Number(properties.delay) || 0.7), prop("respawn", "float", Number(properties.respawn) || 3),
     ]);
     else if (item.type === "warp") created = object(id++, `Warp ${item.uid}`, "WarpGate", x, y - 32, 64, 64, [
-      prop("channel", "string", String(properties.channel || "moon-well-a")), prop("direction", "string", normalizeDirection(properties.direction, "down")), prop("requiresInput", "bool", Boolean(properties.requiresInput)),
+      prop("channel", "string", String(properties.channel || "moon-well-a")), prop("direction", "string", normalizeDirection(properties.direction, "down")), prop("requiresInput", "bool", Boolean(properties.requiresInput)), prop("bidirectional", "bool", Boolean(properties.bidirectional)),
     ]);
-    else if (item.type === "mirror") created = object(id++, `Mirror ${item.uid}`, "MirrorGate", x, y - 16, 32, 48, [prop("channel", "string", String(properties.channel || "mirror-a"))]);
+    else if (item.type === "mirror") created = object(id++, `Mirror ${item.uid}`, "MirrorGate", x, y - 16, 32, 48, [prop("channel", "string", String(properties.channel || "mirror-a")), prop("bidirectional", "bool", Boolean(properties.bidirectional))]);
     else if (item.type === "gravity") created = object(id++, `Moon Phase ${item.uid}`, "GravitySwitch", x, y, 32, 48);
     else if (item.type === "shop") {
       const inventory = properties.items === "power"
@@ -5197,18 +6900,48 @@ function editorMap() {
       prop("name", "string", String(properties.name || "MOON AREA")), prop("background", "string", String(properties.background || "lunar")), prop("transition", "string", properties.transition === "edge" ? "edge" : "smooth"),
     ]);
     else if (item.type === "lowGravity") created = object(id++, `Low Gravity ${item.uid}`, "LowGravityZone", x, y, Math.max(1, Number(properties.width) || 6) * EDITOR_CELL, Math.max(1, Number(properties.height) || 5) * EDITOR_CELL, [
-      prop("gravityScale", "float", Number(properties.gravityScale) || 0.35), prop("impulse", "float", Number(properties.impulse) || 215), prop("drag", "float", Number(properties.drag) || 1.5),
+      prop("gravityScale", "float", Number(properties.gravityScale) || 0.35), prop("jumpScale", "float", Number(properties.jumpScale) || 1.35),
+      prop("impulse", "float", Number(properties.impulse) || 215), prop("drag", "float", Number(properties.drag) || 1.5),
     ]);
+    else if (item.type === "barrier") created = object(id++, `Barrier ${item.uid}`, "Barrier", x, y,
+      Math.max(1, Number(properties.width) || 1) * EDITOR_CELL,
+      Math.max(1, Number(properties.height) || 1) * EDITOR_CELL);
     else if (item.type === "rift") created = object(id++, `Lunar Rift ${item.uid}`, "LunarRift", x, y + 16, Math.max(1, Number(properties.length) || 4) * EDITOR_CELL, 16, [
       prop("damage", "int", Math.max(1, Number(properties.damage) || 20)), prop("interval", "float", Number(properties.interval) || 0.8),
     ]);
     else if (item.type === "checkpoint") created = object(id++, "Lantern Checkpoint", "Checkpoint", x + 4, y - 16, 24, 48);
-    else if (item.type === "portal") created = object(id++, "Moon Portal", "MoonPortal", x, y - 96, 96, 128, [prop("requiresBoss", "bool", Boolean(properties.requiresBoss))]);
+    else if (item.type === "portal") created = object(id++, "Moon Portal", "MoonPortal", x, y - 96, 96, 128);
     else if (item.type === "spawn") created = object(id++, "Player", "PlayerSpawn", x + 16, y + 32, 0, 0);
     if (created) {
       objects.push(created);
       idByUid.set(item.uid, created.id);
+      objectByUid.set(item.uid, created);
     }
+  }
+
+  for (const item of editorState.objects.filter((entry) => ["warp", "mirror"].includes(entry.type))) {
+    const targetId = idByUid.get(item.properties?.targetUid);
+    const created = objectByUid.get(item.uid);
+    if (targetId && created) created.properties.push(prop("targetId", "int", targetId));
+  }
+
+  for (const item of editorState.objects.filter((entry) => ["warp", "mirror", "portal"].includes(entry.type))) {
+    const created = objectByUid.get(item.uid);
+    if (!created) continue;
+    const requiredEnemyIds = [...new Set((item.properties?.requiredEnemyUids || []).map((uid) => idByUid.get(uid)).filter(Boolean))];
+    const requiredKeyIds = [...new Set((item.properties?.requiredKeyUids || []).map((uid) => idByUid.get(uid)).filter(Boolean))];
+    const requirements = [
+      ...requiredEnemyIds.map((targetId) => ({ type: "defeat", targetId })),
+      ...requiredKeyIds.map((targetId) => ({ type: "key", targetId })),
+    ];
+    created.properties.push(
+      prop("lockEnabled", "bool", Boolean(item.properties?.lockEnabled)),
+      prop("requiresBoss", "bool", Boolean(item.properties?.requiresBoss)),
+      prop("requiredEnemyIds", "string", JSON.stringify(requiredEnemyIds)),
+      prop("requiredKeyIds", "string", JSON.stringify(requiredKeyIds)),
+      prop("unlockRequirements", "string", JSON.stringify(requirements)),
+      prop("unlockText", "string", String(item.properties?.unlockText || "").trim().slice(0, 160)),
+    );
   }
 
   for (const item of editorState.objects.filter((entry) => entry.type === "story")) {
@@ -5249,46 +6982,149 @@ function editorMap() {
   const startingScoreValue = Math.max(0, Math.min(999999, Number(document.querySelector("#editor-start-score").value) || 0));
   const startsFire = document.querySelector("#editor-start-fire").checked;
   const startsBig = document.querySelector("#editor-start-big").checked || startsFire;
-  const map = { type: "map", version: "1.10", tiledversion: "1.10", orientation: "orthogonal", renderorder: "right-down", width: editorState.columns, height: editorState.rows, tilewidth: EDITOR_CELL, tileheight: EDITOR_CELL, infinite: false, nextobjectid: id, properties: [{ name: "title", type: "string", value: title }, { name: "background", type: "string", value: document.querySelector("#editor-background").value }, { name: "characterArt", type: "string", value: document.querySelector("#editor-player-art").value.trim() || "assets/kaguya.png" }, { name: "enemySpeed", type: "float", value: Number.isFinite(enemySpeedValue) ? enemySpeedValue : .32 }, { name: "timeLimit", type: "int", value: timeLimitValue }, { name: "startingScore", type: "int", value: startingScoreValue }, { name: "startsBig", type: "bool", value: startsBig }, { name: "startsFire", type: "bool", value: startsFire }], layers: [{ id: 1, name: "Objects", type: "objectgroup", draworder: "topdown", visible: true, objects }] };
+  const author = document.querySelector("#editor-author").value.trim().slice(0, 40);
+  const description = document.querySelector("#editor-description").value.trim().slice(0, 240);
+  const map = {
+    type: "map", version: "1.10", tiledversion: "1.10", orientation: "orthogonal", renderorder: "right-down",
+    width: editorState.columns, height: editorState.rows, tilewidth: EDITOR_CELL, tileheight: EDITOR_CELL,
+    infinite: false, nextobjectid: id,
+    properties: [
+      { name: "title", type: "string", value: title },
+      { name: "author", type: "string", value: author },
+      { name: "description", type: "string", value: description },
+      { name: "background", type: "string", value: document.querySelector("#editor-background").value },
+      { name: "characterArt", type: "string", value: document.querySelector("#editor-player-art").value.trim() || "assets/kaguya.png" },
+      { name: "enemySpeed", type: "float", value: Number.isFinite(enemySpeedValue) ? enemySpeedValue : .32 },
+      { name: "timeLimit", type: "int", value: timeLimitValue },
+      { name: "startingScore", type: "int", value: startingScoreValue },
+      { name: "startsBig", type: "bool", value: startsBig },
+      { name: "startsFire", type: "bool", value: startsFire },
+      { name: "autoPortal", type: "bool", value: editorState.objects.some((item) => item.type === "portal") },
+    ],
+    layers: [{ id: 1, name: "Objects", type: "objectgroup", draworder: "topdown", visible: true, objects }],
+  };
   validateMap(map);
   return map;
 }
 function openEditor() {
+  const restored = restoreEditorDraft();
   startScreen.hidden = true;
   levelScreen.hidden = true;
   settingsScreen.hidden = true;
   settingsOpen = false;
   editorScreen.hidden = false;
-  editorMessage.textContent = "";
+  returnEditorButton.hidden = true;
+  editorPreviewActive = false;
+  editorMessage.textContent = restored ? "已恢复上次自动保存的草稿。" : "";
   renderEditorPalette();
   configureEditorCanvas(false);
 }
-document.querySelector("#open-editor").addEventListener("click", openEditor);
-document.querySelector("#editor-close").addEventListener("click", showTitleScreen);
-document.querySelector("#editor-new").addEventListener("click", () => {
+
+function closeEditor() {
+  if (editorDirty && !window.confirm("当前关卡还有未明确保存或导出的修改。草稿已自动保存在本机，仍要关闭吗？")) return;
+  transitionScreen(showTitleScreen);
+}
+
+function createNewEditorCourse() {
+  if (editorDirty && !window.confirm("新建会覆盖当前编辑状态和自动草稿。请先导出或保存到自定义关卡，仍要继续吗？")) return;
   editorState.columns = EDITOR_DEFAULT_COLUMNS;
   editorState.rows = EDITOR_ROWS;
   editorState.objects = createEditorBaseObjects(editorState.columns, editorState.rows);
   editorState.selectedStoryUid = null;
   editorState.selectedObjectUid = null;
   editorState.cameraPickStep = null;
+  editorState.regionDraft = null;
+  editorState.courseKey = null;
   editorState.storyDraft = createEditorStoryDraft();
+  applyEditorFormSnapshot({});
   document.querySelector("#editor-time-limit").value = "300";
   document.querySelector("#editor-start-score").value = "0";
   document.querySelector("#editor-start-big").checked = false;
   document.querySelector("#editor-start-fire").checked = false;
   editorMessage.textContent = "已新建 36 格关卡。";
+  editorDirty = true;
+  persistEditorDraft();
   renderEditorPalette();
   configureEditorCanvas(false);
-});
-document.querySelector("#editor-export").addEventListener("click", () => downloadJson("super-kaguya-custom-course.json", editorMap()));
-document.querySelector("#editor-play").addEventListener("click", () => {
+}
+
+function editorDefinition(map, key) {
+  const properties = tiledProperties(map.properties);
+  return {
+    key,
+    title: String(properties.title || "自定义月都路线").slice(0, 40),
+    author: String(properties.author || "").slice(0, 40),
+    description: String(properties.description || "").slice(0, 240),
+    subtitle: "自定义关卡",
+    startsBig: propertyBoolean(properties.startsBig, false),
+    startsFire: propertyBoolean(properties.startsFire, false),
+    map,
+  };
+}
+
+function saveEditorToCustom() {
+  try {
+    const map = editorMap();
+    const save = currentSave();
+    const key = editorState.courseKey || `custom-${globalThis.crypto?.randomUUID?.() || Date.now()}`;
+    const definition = editorDefinition(map, key);
+    const existing = save.custom.findIndex((item) => item.key === key);
+    if (existing >= 0) save.custom.splice(existing, 1, definition); else save.custom.push(definition);
+    if (!writeSave(save)) throw new Error("Browser storage quota exceeded");
+    editorState.courseKey = key;
+    editorDirty = false;
+    persistEditorDraft();
+    renderLevelList("custom");
+    editorMessage.textContent = "已保存到自定义关卡列表。";
+  } catch (error) {
+    console.error(error);
+    editorMessage.textContent = "保存失败：浏览器存储空间不足或关卡数据无效。";
+  }
+}
+
+function exportEditorMap() {
+  const map = editorMap();
+  downloadJson("super-kaguya-custom-course.json", map);
+  editorDirty = false;
+  persistEditorDraft();
+  editorMessage.textContent = "JSON 已导出。";
+}
+
+function playEditorMap() {
   const map = editorMap();
   const key = "editor-preview";
-  customLevelDefinitions = [...currentSave().custom.filter((item) => item.key !== key), { key, title: "编辑器试玩", subtitle: "未保存", map }];
+  persistEditorDraft();
+  customLevelDefinitions = [...currentSave().custom.filter((item) => item.key !== key), editorDefinition(map, key)];
+  editorPreviewActive = true;
+  returnEditorButton.hidden = false;
   editorScreen.hidden = true;
   startLevel(key);
-});
+}
+
+function resumeEditorPreview() {
+  loadRequestId += 1;
+  mapReady = false;
+  activeLevelKey = null;
+  Object.keys(input).forEach((control) => setControl(control, false));
+  [completeScreen, pauseScreen, deathScreen, shopScreen, levelScreen, startScreen].forEach((screen) => { screen.hidden = true; });
+  paused = false; gameOver = false; courseComplete = false; shopOpen = false; activeStory = null;
+  editorPreviewActive = false;
+  returnEditorButton.hidden = true;
+  menuButton.hidden = true;
+  editorScreen.hidden = false;
+  stateLabel.textContent = "EDITOR";
+  editorMessage.textContent = "已从试玩返回，草稿仍在。";
+  renderEditorPalette();
+  configureEditorCanvas(true);
+}
+
+document.querySelector("#open-editor").addEventListener("click", () => transitionScreen(openEditor));
+document.querySelector("#editor-close").addEventListener("click", closeEditor);
+document.querySelector("#editor-new").addEventListener("click", createNewEditorCourse);
+document.querySelector("#editor-save-custom").addEventListener("click", saveEditorToCustom);
+document.querySelector("#editor-export").addEventListener("click", exportEditorMap);
+document.querySelector("#editor-play").addEventListener("click", () => transitionScreen(playEditorMap));
+returnEditorButton.addEventListener("click", () => transitionScreen(resumeEditorPreview));
 editorStoryTrigger.addEventListener("change", () => {
   editorState.storyDraft.trigger = editorStoryTrigger.value === "start" ? "start" : "area";
   editorStoryWidthRow.hidden = editorState.storyDraft.trigger === "start";
@@ -5311,6 +7147,7 @@ editorStoryFreeze.addEventListener("change", () => {
 document.querySelector("#editor-story-add").addEventListener("click", () => {
   if (editorState.storyDraft.steps.length >= 24) return;
   editorState.storyDraft.steps.push(createEditorStoryStep());
+  markEditorDirty();
   syncSelectedEditorStory();
   renderEditorStorySteps();
   renderEditor();
@@ -5326,6 +7163,7 @@ editorStorySteps.addEventListener("click", (event) => {
   const remove = event.target.closest("[data-remove-story-step]");
   if (!remove || editorState.storyDraft.steps.length <= 1) return;
   editorState.storyDraft.steps.splice(Number(remove.dataset.removeStoryStep), 1);
+  markEditorDirty();
   syncSelectedEditorStory();
   renderEditorStorySteps();
   renderEditor();
@@ -5371,17 +7209,38 @@ function updateEditorObjectProperty(event) {
   }
   item.properties ||= defaultEditorProperties(item.type);
   item.properties[key] = value;
+  if (key === "requiresBoss" && value) item.properties.lockEnabled = true;
+  markEditorDirty();
   if (["length", "width"].includes(key)) {
     const footprint = Math.max(1, editorObjectEndColumn(item) - item.x);
     if (item.x + footprint > editorState.columns) item.x = Math.max(0, editorState.columns - footprint);
   }
-  if (["lowGravity", "area"].includes(item.type) && key === "height") item.y = Math.min(item.y, editorState.rows - Math.max(1, Number(value) || 1));
+  if (["lowGravity", "area", "barrier"].includes(item.type) && key === "height") item.y = Math.min(item.y, editorState.rows - Math.max(1, Number(value) || 1));
   renderEditor();
 }
 editorObjectForm.addEventListener("input", updateEditorObjectProperty);
 editorObjectForm.addEventListener("change", (event) => {
+  const unlockControl = event.target.closest("[data-unlock-list]");
+  if (unlockControl) {
+    const item = selectedEditorObject();
+    if (!item) return;
+    const propertyName = unlockControl.dataset.unlockList;
+    const targetUid = unlockControl.dataset.unlockTargetUid;
+    const values = new Set(Array.isArray(item.properties?.[propertyName]) ? item.properties[propertyName] : []);
+    if (unlockControl.checked) values.add(targetUid); else values.delete(targetUid);
+    item.properties[propertyName] = [...values];
+    if (values.size) item.properties.lockEnabled = true;
+    markEditorDirty();
+    renderEditorObjectInspector();
+    renderEditor();
+    return;
+  }
   updateEditorObjectProperty(event);
   renderEditorObjectInspector();
+});
+editorObjectForm.addEventListener("click", (event) => {
+  const remove = event.target.closest("[data-delete-editor-object]");
+  if (remove) removeEditorObject(remove.dataset.deleteEditorObject);
 });
 function syncWarpDefaults() {
   const item = selectedEditorObject();
@@ -5421,18 +7280,90 @@ document.querySelector("#editor-add-page").addEventListener("click", () => resiz
 document.querySelector("#editor-remove-page").addEventListener("click", () => resizeEditorColumns(Math.max(EDITOR_MIN_COLUMNS, editorState.columns - 36)));
 window.addEventListener("resize", () => { if (!editorScreen.hidden) updateEditorScrollPosition(); });
 editorGrid.addEventListener("contextmenu", (event) => event.preventDefault());
+
+function beginEditorRegion(event) {
+  const point = editorPoint(event);
+  editorState.regionDraft = { type: editorState.tool, start: point, current: point };
+  editorState.drawing = false;
+  editorGrid.setPointerCapture(event.pointerId);
+  renderEditor();
+}
+
+function updateEditorRegion(event) {
+  if (!editorState.regionDraft) return;
+  editorState.regionDraft.current = editorPoint(event);
+  renderEditor();
+}
+
+function commitEditorRegion() {
+  const draft = editorState.regionDraft;
+  if (!draft) return;
+  const minimumWidth = draft.type === "area" ? Math.min(16, editorState.columns) : 1;
+  const minimumHeight = draft.type === "area" ? Math.min(9, editorState.rows) : 1;
+  let x = Math.min(draft.start.x, draft.current.x);
+  let y = Math.min(draft.start.y, draft.current.y);
+  let width = Math.max(minimumWidth, Math.abs(draft.current.x - draft.start.x) + 1);
+  let height = Math.max(minimumHeight, Math.abs(draft.current.y - draft.start.y) + 1);
+  width = Math.min(width, editorState.columns);
+  height = Math.min(height, editorState.rows);
+  x = Math.min(x, editorState.columns - width);
+  y = Math.min(y, editorState.rows - height);
+  const item = createEditorItem(draft.type, { x, y });
+  item.properties.width = width;
+  item.properties.height = height;
+  editorState.objects.push(item);
+  editorState.selectedObjectUid = item.uid;
+  editorState.selectedStoryUid = null;
+  editorState.regionDraft = null;
+  markEditorDirty();
+  renderEditorObjectInspector();
+  renderEditor();
+}
+
 editorGrid.addEventListener("pointerdown", (event) => {
   editorState.lastPaintKey = "";
+  if (EDITOR_REGION_TYPES.has(editorState.tool) && event.button === 0 && editorState.cameraPickStep == null) {
+    beginEditorRegion(event);
+    return;
+  }
   editorState.drawing = !["story", "select"].includes(editorState.tool) && editorState.cameraPickStep == null;
   editAt(event);
   editorGrid.setPointerCapture(event.pointerId);
 });
-editorGrid.addEventListener("pointermove", (event) => { if (editorState.drawing) editAt(event); });
-editorGrid.addEventListener("pointerup", () => { editorState.drawing = false; editorState.lastPaintKey = ""; });
-editorGrid.addEventListener("pointercancel", () => { editorState.drawing = false; editorState.lastPaintKey = ""; });
+editorGrid.addEventListener("pointermove", (event) => {
+  if (editorState.regionDraft) updateEditorRegion(event);
+  else if (editorState.drawing) editAt(event);
+});
+editorGrid.addEventListener("pointerup", () => {
+  if (editorState.regionDraft) commitEditorRegion();
+  editorState.drawing = false;
+  editorState.lastPaintKey = "";
+});
+editorGrid.addEventListener("pointercancel", () => {
+  editorState.regionDraft = null;
+  editorState.drawing = false;
+  editorState.lastPaintKey = "";
+  renderEditor();
+});
 [lunarTownSprite, playerSprite, enemySprite, ...foodSprites].forEach((image) => image.addEventListener("load", () => {
   if (!editorScreen.hidden) renderEditor();
 }));
+
+editorScreen.addEventListener("input", (event) => {
+  if (event.target.matches("input, textarea, select")) markEditorDirty();
+});
+editorScreen.addEventListener("change", (event) => {
+  if (event.target.matches("input, textarea, select")) markEditorDirty();
+});
+window.addEventListener("pagehide", () => {
+  if (editorDirty || !editorScreen.hidden || editorPreviewActive) persistEditorDraft();
+});
+window.addEventListener("beforeunload", (event) => {
+  if (!editorDirty) return;
+  persistEditorDraft();
+  event.preventDefault();
+  event.returnValue = "";
+});
 
 canvas.addEventListener("pointerdown", () => {
   if (activeStory) requestStoryAdvance();

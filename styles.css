@@ -71,6 +71,15 @@ button:disabled {
   cursor: wait;
 }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #fff09c;
+  outline-offset: 2px;
+}
+
 #reset {
   border: 0;
   background: transparent;
@@ -81,6 +90,15 @@ button:disabled {
   height: 28px;
   border-color: #ffc65d;
   font-size: 11px;
+}
+
+#return-editor {
+  width: 48px;
+  height: 28px;
+  border-color: #9de7ea;
+  color: #9de7ea;
+  font-family: "Microsoft YaHei", Consolas, monospace;
+  font-size: 10px;
 }
 
 #settings {
@@ -95,6 +113,28 @@ button:disabled {
   width: 100%;
   aspect-ratio: 16 / 9;
   overflow: hidden;
+}
+
+.screen-transition {
+  position: absolute;
+  inset: 2px;
+  z-index: 30;
+  pointer-events: none;
+  background: #17142f;
+  transform: scaleX(0);
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.screen-transition.is-covering {
+  transform: scaleX(1);
+  transition: transform 120ms steps(8, end);
+}
+
+.screen-transition.is-revealing {
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 140ms steps(8, end);
 }
 
 .start-screen {
@@ -263,11 +303,43 @@ button:disabled {
 .start-disclaimer {
   grid-column: 1 / -1;
   width: min(410px, 92%);
-  margin: 1px 0 0;
+  margin: 7px 0 0;
   color: #4b4385;
-  font-size: 8px;
-  line-height: 1.45;
+  font: 700 9px/1.5 "Microsoft YaHei", Consolas, monospace;
 }
+
+.music-toggle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  width: 38px;
+  height: 32px;
+  border-color: #6c61cf;
+  background: #fff4ef;
+}
+
+.music-toggle canvas { display: block; width: 24px; height: 20px; margin: 0 auto; image-rendering: pixelated; }
+.music-toggle.is-muted canvas { opacity: .3; }
+.music-toggle.is-muted::after { content: ""; position: absolute; left: 7px; top: 14px; width: 24px; height: 3px; background: #ff4f71; transform: rotate(-42deg); transform-origin: center; }
+
+.github-link {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 2px solid #6c61cf;
+  background: #fff4ef;
+  transition: transform 120ms steps(2, end), background 120ms steps(2, end);
+}
+
+.github-link:hover { background: #ff82bd; transform: translateY(-2px); }
+.github-link:active { transform: translateY(1px); }
+.github-link img { display: block; width: 28px; height: 28px; object-fit: contain; image-rendering: pixelated; }
 
 .overlay-panel,
 .editor-screen {
@@ -305,7 +377,7 @@ button:disabled {
 .pause-screen .panel-heading { justify-content: center; min-width: 190px; }
 .pause-actions { display: grid; gap: 8px; min-width: 190px; }
 .pause-actions .panel-button { width: 100%; }
-.settings-screen { align-items: center; justify-content: flex-start; gap: 10px; background: rgba(36, 32, 78, .97); }
+.settings-screen { z-index: 7; align-items: center; justify-content: flex-start; gap: 10px; background: rgba(36, 32, 78, .97); }
 .settings-screen .panel-heading { width: min(520px, 100%); }
 .settings-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: min(520px, 100%); }
 .settings-row { display: flex; align-items: center; justify-content: space-between; min-height: 40px; padding: 0 9px; border: 2px solid #7466dd; background: #302c62; color: #fff4ef; font-size: 12px; }
@@ -326,12 +398,24 @@ button:disabled {
 .keybind-button:hover, .keybind-button:focus-visible { border-color: #9de7ea; }
 .keybind-button.is-listening { border-color: #ffc65d; background: #ff82bd; color: #24204e; }
 .settings-screen > .panel-message { width: min(520px, 100%); min-height: 16px; margin-top: 0; }
+.settings-tabs { display: flex; gap: 6px; width: min(520px, 100%); }
+.settings-tabs button { width: auto; height: 28px; padding: 0 14px; border-color: #7466dd; font: 10px "Microsoft YaHei", Consolas, monospace; }
+.settings-tabs button.is-active { border-color: #ff82bd; background: #ff82bd; color: #24204e; }
+.settings-page { display: grid; gap: 8px; width: min(520px, 100%); }
+.settings-page[hidden] { display: none; }
+.audio-settings { align-content: start; }
+.volume-row { display: grid; grid-template-columns: 88px minmax(0, 1fr) 42px; align-items: center; gap: 9px; min-height: 39px; padding: 5px 8px; border-left: 3px solid #ff82bd; background: #302c62; color: #fff4ef; font: 10px "Microsoft YaHei", Consolas, monospace; }
+.volume-row input { width: 100%; accent-color: #ff82bd; }
+.volume-row output { color: #fff09c; text-align: right; font-variant-numeric: tabular-nums; }
+.audio-empty { margin: 2px 0 0; padding: 8px; border: 1px solid #7466dd; color: #9de7ea; font: 9px/1.6 "Microsoft YaHei", Consolas, monospace; }
 
 .editor-screen { z-index: 5; background: #15142f; }
 .editor-layout { display: grid; grid-template-columns: 154px minmax(0, 1fr); gap: 12px; min-height: 350px; margin-top: 12px; }
 .editor-layout aside { display: grid; align-content: start; gap: 8px; padding: 8px; border: 2px solid #39346a; background: #24204e; }
 .editor-layout label { display: grid; gap: 4px; color: #9de7ea; font-size: 9px; }
-.editor-layout input, .editor-layout select { min-width: 0; height: 26px; border: 1px solid #7466dd; background: #17142f; color: #fff4ef; font: 10px Consolas, monospace; }
+.editor-layout input, .editor-layout select, .editor-layout textarea { min-width: 0; border: 1px solid #7466dd; background: #17142f; color: #fff4ef; font: 10px/1.45 Consolas, "Microsoft YaHei", monospace; }
+.editor-layout input, .editor-layout select { height: 26px; }
+.editor-layout textarea { min-height: 54px; padding: 5px; resize: vertical; }
 .editor-palette { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; }
 .editor-palette button { width: auto; height: 28px; border-color: #7466dd; font-size: 8px; }
 .editor-palette button.is-active { background: #36ff88; color: #17142f; }
@@ -349,8 +433,30 @@ button:disabled {
 .level-card:disabled::before { background: #4b4385; box-shadow: 5px 5px 0 #302c62; }
 .level-card strong { color: #fff4ef; font-size: 13px; }
 .level-card small { color: #9de7ea; font-size: 10px; }
+.level-card-description { overflow: hidden; max-height: 24px; color: #d8bcff !important; line-height: 1.3; }
 .panel-actions { justify-content: center; margin-top: 10px; }
 .panel-message { margin-bottom: 0; text-align: center; }
+
+.start-screen:not([hidden]),
+.overlay-panel:not([hidden]),
+.editor-screen:not([hidden]),
+.death-screen:not([hidden]) {
+  animation: panel-enter 150ms steps(5, end);
+}
+
+@keyframes panel-enter {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.editor-delete-object {
+  width: 100%;
+  height: 28px;
+  border-color: #ff4f71;
+  background: #17142f;
+  color: #ff82bd;
+  font: 10px "Microsoft YaHei", Consolas, monospace;
+}
 
 .editor-layout { grid-template-columns: 228px minmax(0, 1fr); min-height: 0; }
 .editor-layout aside { max-height: 420px; overflow-y: auto; border-color: #7466dd; }
@@ -359,7 +465,7 @@ button:disabled {
 .editor-palette button { display: flex; align-items: center; justify-content: flex-start; gap: 5px; min-width: 0; padding: 0 5px; color: #fff4ef; text-align: left; }
 .editor-palette button.is-active { border-color: #fff4ef; background: #ff82bd; color: #24204e; }
 .palette-preview { flex: 0 0 20px; width: 20px; height: 20px; image-rendering: pixelated; }
-.editor-workspace { position: relative; align-self: start; width: 100%; min-width: 0; overflow: hidden; background: #15142f; }
+.editor-workspace { position: relative; display: grid; grid-template-rows: auto auto minmax(78px, 1fr) auto auto; align-self: start; width: 100%; min-width: 0; height: 420px; overflow: hidden; background: #15142f; }
 .editor-viewport-toolbar { display: flex; align-items: center; justify-content: space-between; min-height: 30px; padding: 3px 6px; border-bottom: 2px solid #7466dd; background: #24204e; }
 .editor-scroll-buttons { display: flex; gap: 4px; }
 .editor-scroll-buttons button { width: 28px; height: 22px; border-color: #9de7ea; font-size: 10px; }
@@ -368,6 +474,9 @@ button:disabled {
 .editor-scroll-area { width: 100%; max-height: 360px; overflow: auto; background: #d8bcff; scrollbar-color: #ff82bd #24204e; scrollbar-width: thin; }
 .editor-grid { display: block; height: 180px; max-width: none; background: #d8bcff; image-rendering: pixelated; cursor: crosshair; touch-action: none; }
 .editor-message { min-height: 13px; margin: 0; padding: 0 6px 5px; color: #ffc65d; font: 8px/1.5 "Microsoft YaHei", Consolas, monospace; }
+.editor-tutorial { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: start; align-content: center; gap: 10px; min-height: 78px; padding: 12px 14px; border-top: 2px solid #7466dd; border-bottom: 1px solid #39346a; background: #211d4d; }
+.editor-tutorial strong { color: #fff09c; font: 11px "Microsoft YaHei", Consolas, monospace; }
+.editor-tutorial p { margin: 0; max-width: 74ch; color: #d8bcff; font: 9px/1.65 "Microsoft YaHei", Consolas, monospace; }
 .editor-story-fields { display: grid; gap: 7px; min-width: 0; margin: 3px 0 0; padding: 8px; border: 2px solid #ff82bd; }
 .editor-story-fields[hidden] { display: none; }
 .editor-story-fields legend { padding: 0 5px; color: #ff82bd; font-size: 10px; font-weight: 700; }
@@ -375,9 +484,15 @@ button:disabled {
 .editor-sidebar.is-story-mode .editor-fields { display: none; }
 .editor-object-form { display: grid; gap: 7px; }
 .editor-object-form label { display: grid; gap: 4px; color: #9de7ea; font-size: 9px; }
-.editor-object-form input, .editor-object-form select { width: 100%; min-width: 0; }
+.editor-object-form input, .editor-object-form select, .editor-object-form textarea { width: 100%; min-width: 0; }
+.editor-object-form textarea { min-height: 58px; padding: 5px; resize: vertical; border: 1px solid #7466dd; background: #17142f; color: #fff4ef; font: 9px/1.5 "Microsoft YaHei", Consolas, monospace; }
 .editor-object-form .editor-check { display: flex; }
 .editor-object-id { margin: 0; padding: 5px 6px; border: 1px solid #7466dd; color: #fff4ef; background: #17142f; font: 8px Consolas, monospace; overflow-wrap: anywhere; }
+.editor-target-group { display: grid; gap: 4px; padding: 6px; border-left: 2px solid #fff09c; background: #17142f; }
+.editor-target-group > strong { color: #fff09c; font: 9px "Microsoft YaHei", Consolas, monospace; }
+.editor-target-group > small { color: #7466dd; font: 8px "Microsoft YaHei", Consolas, monospace; }
+.editor-target-option { display: grid !important; grid-template-columns: 14px minmax(0, 1fr); align-items: center; gap: 5px !important; min-height: 20px; color: #d8bcff !important; line-height: 1.3; }
+.editor-target-option input { width: 13px !important; height: 13px; accent-color: #fff09c; }
 .camera-mode-row { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr auto; gap: 5px; align-items: end; }
 .camera-pick-button { width: auto; min-width: 58px; height: 28px; padding: 0 6px; border-color: #9de7ea; font-size: 8px; }
 .editor-grid.is-picking-camera { cursor: crosshair; outline: 3px solid #ffc65d; outline-offset: -3px; }
@@ -410,15 +525,84 @@ button:disabled {
   text-align: center;
 }
 
-.shop-screen { z-index: 5; width: min(620px, calc(100% - 28px)); }
-.shop-balance { padding: 8px; border: 2px solid #9de7ea; color: #fff4ef; text-align: center; font: 12px Consolas, monospace; }
-.shop-balance b { color: #ffc65d; }
-.shop-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
-.shop-item { display: grid; grid-template-columns: 1fr auto; gap: 3px 8px; min-height: 58px; padding: 8px; border: 2px solid #ff82bd; background: #24204e; color: #fff4ef; text-align: left; }
-.shop-item strong { color: #ff82bd; font-size: 10px; }
-.shop-item span { grid-column: 1 / -1; color: #9de7ea; font-size: 8px; }
-.shop-item b { grid-column: 2; grid-row: 1; color: #ffc65d; font-size: 9px; }
-.shop-item:disabled { opacity: .45; filter: grayscale(.7); }
+.shop-screen { z-index: 5; width: min(590px, calc(100% - 28px)); margin: 0 auto; background: rgba(23, 20, 47, .98); }
+.shop-heading > div, .workshop-heading > div { text-align: left; }
+.shop-heading h2, .workshop-heading h2 { margin-bottom: 2px; }
+.shop-heading small, .workshop-heading small { display: block; margin-bottom: 8px; color: #9de7ea; font: 8px "Microsoft YaHei", Consolas, monospace; }
+.shop-balance { display: grid; grid-template-columns: auto minmax(90px, 1fr) auto; align-items: center; gap: 12px; min-height: 42px; padding: 7px 10px; border-left: 4px solid #9de7ea; background: #302c62; color: #fff4ef; text-align: left; }
+.shop-balance span { color: #9de7ea; font: 10px "Microsoft YaHei", Consolas, monospace; }
+.shop-balance b { color: #ffc65d; font: 16px Consolas, monospace; font-variant-numeric: tabular-nums; }
+.shop-balance small { color: #d8bcff; font: 8px "Microsoft YaHei", Consolas, monospace; }
+.shop-items { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; width: 100%; margin-top: 2px; }
+.shop-item { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 9px; width: 100%; height: auto; min-height: 56px; padding: 7px 9px; border: 1px solid #7466dd; border-left-width: 3px; background: #24204e; color: #fff4ef; text-align: left; transition: transform 100ms steps(2, end), background 100ms steps(2, end), border-color 100ms steps(2, end); }
+.shop-item:not(:disabled):hover { border-color: #ff82bd; background: #302c62; transform: translateX(2px); }
+.shop-item:active { transform: translateX(2px) translateY(1px); }
+.shop-item-copy { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 2px 8px; min-width: 0; }
+.shop-item-copy strong { color: #fff4ef; font: 11px "Microsoft YaHei", Consolas, monospace; }
+.shop-item-copy small { color: #ff82bd; font: 7px Consolas, monospace; }
+.shop-item-copy > span { grid-column: 1 / -1; color: #9de7ea; font: 8px/1.45 "Microsoft YaHei", Consolas, monospace; }
+.shop-item > b { color: #ffc65d; font: 9px "Microsoft YaHei", Consolas, monospace; white-space: nowrap; }
+.shop-item-icon { position: relative; display: block; width: 32px; height: 32px; border: 2px solid #7466dd; background: #17142f; }
+.shop-item-icon::before, .shop-item-icon::after { content: ""; position: absolute; image-rendering: pixelated; }
+.shop-item-icon::before { left: 7px; top: 8px; width: 16px; height: 14px; background: #ff82bd; box-shadow: 3px -4px 0 #fff09c, -3px 3px 0 #ff82bd; }
+.shop-item-icon[data-product="fire"]::before { left: 6px; top: 12px; width: 18px; height: 9px; background: #fff4ef; box-shadow: 3px -5px 0 #ff4f71, 8px -8px 0 #ffc65d; }
+.shop-item-icon[data-product="star"]::before { left: 8px; top: 5px; width: 7px; height: 19px; background: #fff09c; box-shadow: 5px 3px 0 #fff09c, 9px 7px 0 #17142f; }
+.shop-item-icon[data-product="heal"]::before { left: 8px; top: 8px; width: 14px; height: 15px; background: #9de7ea; box-shadow: 4px 3px 0 #17142f; }
+.shop-item:disabled { opacity: .42; filter: grayscale(.7); cursor: not-allowed; }
+.shop-screen > .panel-message { margin-top: auto; padding-top: 8px; text-align: left; }
+.workshop-screen { z-index: 8; background: rgba(36, 32, 78, .98); }
+.workshop-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; border-bottom: 1px solid #7466dd; }
+.workshop-tabs { display: flex; gap: 4px; overflow-x: auto; }
+.workshop-tabs button { flex: 0 0 auto; width: auto; height: 25px; padding: 0 9px; border-color: #7466dd; font: 9px "Microsoft YaHei", Consolas, monospace; }
+.workshop-tabs button.is-active { border-color: #ff82bd; background: #ff82bd; color: #24204e; }
+.workshop-refresh { flex: 0 0 28px; width: 28px; height: 25px; padding: 0; border-color: #9de7ea; font-size: 14px; }
+.workshop-body { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.workshop-list { display: grid; align-content: start; max-height: 100%; overflow-y: auto; }
+.workshop-list[hidden] { display: none; }
+.workshop-entry { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; width: 100%; min-height: 62px; height: auto; padding: 9px 12px 9px 17px; border: 0; border-bottom: 1px solid #4b4385; background: #302c62; color: #fff4ef; text-align: left; }
+.workshop-entry::before { content: ""; position: absolute; left: 6px; top: 10px; bottom: 10px; width: 3px; background: #7466dd; }
+.workshop-entry:hover { background: #423d7a; }
+.workshop-entry:hover::before { background: #ff82bd; }
+.workshop-entry strong { font-size: 11px; }
+.workshop-entry small { grid-column: 1; max-width: 72ch; color: #9de7ea; font: 8px/1.5 "Microsoft YaHei", Consolas, monospace; }
+.workshop-entry b { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: #fff09c; font-size: 8px; }
+.workshop-detail { position: absolute; inset: 0; z-index: 1; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: #17142f; }
+.workshop-detail[hidden] { display: none; }
+.workshop-detail-heading { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 52px; padding: 5px 8px; border-bottom: 2px solid #7466dd; }
+.workshop-detail-heading button { width: 28px; height: 28px; padding: 0; border-color: #9de7ea; font-size: 14px; }
+.workshop-detail-heading div { min-width: 0; }
+.workshop-detail-heading small { display: block; overflow: hidden; color: #9de7ea; font: 7px Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; }
+.workshop-detail-heading h3 { margin: 3px 0 0; color: #fff4ef; font: 14px/1.1 "Microsoft YaHei", Consolas, monospace; }
+.workshop-detail-heading > b { color: #fff09c; font: 10px Consolas, monospace; }
+.workshop-detail-scroll { overflow-y: auto; }
+.workshop-detail-scroll section { padding: 11px 12px 13px; border-bottom: 1px solid #39346a; }
+.workshop-detail-scroll h4 { margin: 0 0 8px; color: #ff82bd; font: 10px "Microsoft YaHei", Consolas, monospace; }
+.workshop-intro > p { max-width: 72ch; margin: 0 0 10px; color: #d8bcff; font: 9px/1.65 "Microsoft YaHei", Consolas, monospace; }
+.workshop-intro dl { display: grid; grid-template-columns: 62px minmax(0, 1fr) 70px minmax(0, 1fr); gap: 5px 8px; margin: 0; font: 8px/1.5 "Microsoft YaHei", Consolas, monospace; }
+.workshop-intro dt { color: #7466dd; }
+.workshop-intro dd { min-width: 0; margin: 0; color: #fff4ef; overflow-wrap: anywhere; }
+.workshop-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.workshop-tags span { padding: 2px 5px; border-left: 2px solid #9de7ea; color: #9de7ea; background: #24204e; font: 7px Consolas, monospace; }
+.workshop-file-list, .workshop-dependency-list { display: grid; gap: 1px; color: #9de7ea; font: 8px "Microsoft YaHei", Consolas, monospace; }
+.workshop-file-list > div, .workshop-dependency-list > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; padding: 6px 8px; background: #24204e; }
+.workshop-file-list strong, .workshop-dependency-list strong { min-width: 0; color: #fff4ef; overflow-wrap: anywhere; }
+.workshop-file-list small { grid-column: 1; color: #7466dd; overflow-wrap: anywhere; }
+.workshop-file-list b { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: #fff09c; }
+.workshop-dependency-list span { grid-column: 1; color: #9de7ea; }
+.workshop-dependency-list b { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: #fff09c; }
+.workshop-dependency-list p { margin: 0; padding: 6px 0; color: #9de7ea; }
+.workshop-detail footer { display: flex; align-items: center; gap: 10px; min-height: 45px; padding: 6px 9px; border-top: 2px solid #7466dd; background: #24204e; }
+.workshop-detail footer button { width: auto; height: 30px; padding: 0 12px; border-color: #ff82bd; font: 9px "Microsoft YaHei", Consolas, monospace; }
+.workshop-detail footer span { color: #9de7ea; font: 8px "Microsoft YaHei", Consolas, monospace; }
+.workshop-install { position: absolute; inset: 0; z-index: 2; display: grid; align-content: center; gap: 8px; padding: 14px 18%; background: rgba(23,20,47,.98); }
+.workshop-install[hidden] { display: none; }
+.workshop-install header { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 2px solid #7466dd; }
+.workshop-install header strong { margin-bottom: 8px; color: #ff82bd; font-size: 13px; }
+.workshop-install header button { width: 28px; height: 28px; padding: 0; border-color: #9de7ea; }
+.workshop-install p, .workshop-install div { margin: 0; color: #d8bcff; font: 9px/1.55 "Microsoft YaHei", Consolas, monospace; }
+.workshop-install #workshop-dependencies { max-height: 128px; padding: 8px; overflow: auto; background: #24204e; white-space: pre-line; }
+.workshop-install-actions { display: flex; gap: 7px; }
+.workshop-install-actions button { width: auto; height: 30px; padding: 0 10px; font: 9px "Microsoft YaHei", Consolas, monospace; }
 .action-pad { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .interact-button { border-color: #9de7ea !important; color: #9de7ea !important; }
 
@@ -471,7 +655,7 @@ button:disabled {
   content: "";
   position: absolute;
   inset: 2px;
-  z-index: 2;
+  z-index: 10;
   pointer-events: none;
   opacity: 0;
   transition: opacity 120ms linear;
@@ -547,6 +731,14 @@ button:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .screen-transition,
+  .start-screen:not([hidden]),
+  .overlay-panel:not([hidden]),
+  .editor-screen:not([hidden]),
+  .death-screen:not([hidden]) {
+    animation: none !important;
+    transition: none !important;
+  }
   .display-frame.is-crt::before,
   .display-frame.is-crt::after {
     animation: none;
@@ -642,7 +834,7 @@ button:disabled {
   }
 
   .start-title {
-    font-size: 30px;
+    font-size: 28px;
     text-shadow:
       2px 0 #fff4ef,
       -2px 0 #fff4ef,
@@ -658,7 +850,7 @@ button:disabled {
 
   .start-stage {
     width: min(150px, 100%);
-    min-height: 82px;
+    min-height: 68px;
   }
 
   .start-actions,
@@ -667,14 +859,14 @@ button:disabled {
   }
 
   .start-actions {
-    gap: 4px;
+    gap: 3px;
     min-width: 164px;
   }
 
   .start-button {
-    height: 27px;
+    height: 23px;
     padding: 0 10px;
-    font-size: 10px;
+    font-size: 9px;
   }
 
   .start-message {
@@ -684,15 +876,30 @@ button:disabled {
 
   .start-player {
     left: 42px;
-    bottom: 10px;
-    scale: 0.75;
+    bottom: 6px;
+    scale: 0.65;
   }
 
-  .start-disclaimer { font-size: 6px; }
+  .start-disclaimer { width: calc(100% - 84px); margin-top: 2px; font-size: 7.5px; line-height: 1.25; }
+  .music-toggle { top: 6px; right: 6px; transform: scale(.82); transform-origin: top right; }
+  .github-link { right: 6px; bottom: 6px; width: 28px; height: 28px; }
+  .github-link img { width: 23px; height: 23px; }
   .overlay-panel, .editor-screen { padding: 10px; }
   .editor-layout { grid-template-columns: 122px minmax(0, 1fr); gap: 6px; }
   .editor-layout aside { padding: 5px; }
   .editor-palette { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
   .editor-palette button { gap: 2px; padding: 0 2px; font-size: 6px; }
   .palette-preview { flex-basis: 18px; width: 18px; height: 18px; }
+  .editor-tutorial { grid-template-columns: 1fr; gap: 3px; min-height: 52px; padding: 6px; }
+  .editor-tutorial strong { font-size: 9px; }
+  .editor-tutorial p { font-size: 7px; }
+  .workshop-tabs button { padding: 0 6px; font-size: 7px; }
+  .shop-screen { width: calc(100% - 12px); }
+  .shop-balance { grid-template-columns: auto 1fr; gap: 4px 8px; }
+  .shop-balance small { grid-column: 1 / -1; }
+  .shop-item { grid-template-columns: 32px minmax(0, 1fr); }
+  .shop-item-icon { width: 28px; height: 28px; transform: scale(.85); transform-origin: center; }
+  .shop-item > b { grid-column: 2; }
+  .workshop-intro dl { grid-template-columns: 56px minmax(0, 1fr); }
+  .workshop-install { padding-inline: 10px; }
 }

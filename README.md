@@ -43,8 +43,8 @@ conflicting keys are exchanged so every action remains reachable.
 
 ## Current game
 
-- `MOON ROAD 1-1` is an adapted reference route with Kaguya, lunar gates, sushi
-  collection, enemies, breakable bricks, power-ups, score and health HUD.
+- The repository now ships one authored course: `FULL SYSTEM TEST`. The old
+  adapted Mario route was removed; future story routes will be original maps.
 - Every restart samples surface-valid sushi positions at random. Samples are
   separated by at least five 32px blocks and never originate in lucky blocks.
 - A moon portal ends the course and displays score, kills, sushi, bricks,
@@ -54,11 +54,18 @@ conflicting keys are exchanged so every action remains reachable.
   regions, moon-well and mirror transport, moving/one-way/falling/linked lifts,
   moon-phase gravity inversion, a score shop, low-gravity moon dust, lunar-rift
   damage, checkpoints, a timed multi-phase boss fight, damage numbers and a
-  boss-locked completion portal.
+  target-locked completion portal, three fixed moon keys, an explicit invisible
+  barrier and independently tuned low-gravity/jump multipliers.
+- Moon wells, mirror gates and completion portals share one declarative lock
+  model. A lock may require exact enemy/Boss object IDs, any number of exact key
+  IDs, or the legacy "defeat all bosses" condition. The shield shows key
+  progress as dim/lit crescents and fails closed when a referenced ID is absent.
 - Declarative story scenes support opening dialogue, area triggers, speech
   bubbles anchored to game objects, and smooth world-space camera cues.
 - Progress uses a cookie. Custom courses are stored locally because map JSON is
   too large for a cookie; both are included in manual save export/import.
+  Editor drafts are also written to local storage after changes so a refresh or
+  interrupted preview does not discard the current course.
 
 ## Course maker
 
@@ -76,6 +83,31 @@ switches, shop inventory presets, starting score and starting powers. Story
 camera cues support two-axis coordinates, canvas point selection, or attachment
 to a particular identified object.
 
+Low-gravity fields and camera regions are placed by dragging a rectangle and
+coexist with terrain instead of replacing it. Every warp and mirror gate keeps
+an independent editor UID; its inspector can choose an exact destination and
+whether the destination automatically links back. Connected gates are shown as
+directional dashed lines in the editor and in debug mode. The default completion
+portal may be deleted for endless or objective-driven community maps.
+
+The editor stores an automatic draft, warns before closing dirty work, and keeps
+the same draft when returning from preview. **保存到自定义关卡** writes or updates
+the course in the local Custom list; title, author and description are retained
+across refreshes and manual save export/import. **导出 JSON** remains the portable
+community-sharing format.
+
+The area tool is now labelled **镜头背景区**. It is metadata, not collision: it
+selects the background and constrains the camera. Use **空气墙** for a real
+invisible collision rectangle; it is visible only in the editor and Debug.
+Low-gravity rectangles expose separate gravity and jump multipliers. Selecting
+any palette component updates the tutorial panel beneath the map viewport.
+
+Moon keys receive independent editor UIDs and exported Tiled object IDs. Select
+a moon well, mirror gate or completion portal to enable its target lock and tick
+specific enemies/Bosses and keys. Editor references use stable UIDs; export
+converts them to numeric Tiled IDs and removes references when a target is
+deleted.
+
 The level selector imports exported JSON into its Custom tab. Imported maps use
 a declarative schema: theme, character art URL, story events and numeric
 movement parameters are allowed; arbitrary JavaScript is intentionally not
@@ -86,11 +118,12 @@ community-map contract.
 
 ## Deploy
 
-1. Keep `index.html`, `styles.css`, `game.js`, `assets/`, and `maps/` together.
+1. Keep `index.html`, `styles.css`, `game.js`, `config.js`, `assets/`, `maps/`,
+   and `workshop/` together.
 2. Upload them to a static host such as GitHub Pages, Netlify, Cloudflare Pages,
    or any web server that serves `.json` with `application/json`.
 3. Set the site root to this repository root. There is no build command.
-4. Visit the hosted URL and verify `/maps/smb1-1-1.json` returns HTTP 200.
+4. Visit the hosted URL and verify `/maps/all-mechanics-test.json` returns HTTP 200.
 
 GitHub Pages: create a repository, push the source, then select **Settings >
 Pages > Deploy from a branch > main / root**. The included static server is only
@@ -110,14 +143,65 @@ required. Keep the repository private until every bundled asset has been
 cleared for redistribution. GitHub Pages availability for a private repository
 depends on the account plan; any ordinary static host can serve the same files.
 
+## Audio system
+
+The title-screen pixel note toggles background music only. `设置 > 音量` stores
+independent 0-100 levels for music, player, enemy and level audio. No music file
+is bundled yet. Runtime or declarative content adapters may register same-origin
+audio through `window.SuperKaguyaAudio.register(id, { url, category, loop })`
+and play it through `window.SuperKaguyaAudio.play(id, { gain, loop })`.
+
+Useful MIDI sources for inspiration and properly licensed starting material:
+
+- [Mutopia Project](https://www.mutopiaproject.org/) (check each score's PD/CC license)
+- [OpenGameArt MIDI](https://opengameart.org/tags/midi) (prefer CC0 or CC-BY)
+- [Wikimedia Commons MIDI](https://commons.wikimedia.org/wiki/Category:MIDI_files) (check each file page)
+- [GiantMIDI-Piano](https://github.com/bytedance/GiantMIDI-Piano) (CC BY 4.0 dataset)
+- [MAESTRO](https://magenta.tensorflow.org/datasets/maestro) is CC BY-NC-SA and
+  should remain research/inspiration only if future commercial use is possible.
+
+The composition, MIDI arrangement, and SoundFont/sample library can have three
+different licenses. Record all three before bundling a rendered track.
+
+## Community Workshop demo
+
+Choose **COMMUNITY WORKSHOP** on the title screen. The API URL is deployment
+configurable and saved locally; the default is
+`http://127.0.0.1:55125/api/v1`. If it is unavailable the client falls back to
+the repository's six-package demo catalog within about one second.
+
+```powershell
+node workshop-server.js
+```
+
+The zero-dependency demo backend exposes search, details, immutable versions,
+manifests, SHA-256 blobs, dependency resolution/lockfiles and reports. Run its
+end-to-end test with `node tools/workshop-smoke.cjs`. Full schemas, production
+architecture, security constraints, mod-platform references and a complete
+backend-generation prompt are in [docs/WORKSHOP_API.md](docs/WORKSHOP_API.md);
+the machine-readable contract is [workshop/openapi.json](workshop/openapi.json).
+
+Community packages are data only. The client rejects non-declarative entrypoints,
+unknown capabilities, non-JSON payloads and hash mismatches. It never imports or
+evaluates downloaded JavaScript. Installed packages and exact dependency
+versions are stored locally. The demo Moon Key package adds a compatible
+`工坊：月之钥匙` adapter to the editor palette; future item/mechanic types require
+an explicit trusted engine adapter before they become placeable.
+
+For a deployed instance, edit `config.js` and set `workshopApiBaseUrl` to that
+instance's HTTPS `/api/v1` URL. A user-entered URL in the Workshop page overrides
+the deployment default on that browser.
+
 ## Asset and rights note
 
 The code and original project-specific artwork may be released under MIT; see
-[LICENSE](LICENSE). Do **not** push `assets/food/source/` to a public repository
-without the creator's permission: its supplied terms permit use in a game but
-prohibit redistribution of the raw source artwork. The folder is ignored by
-Git for that reason. `references/` is local research material and is also
-ignored.
+[LICENSE](LICENSE). Do **not** push `assets/food/source/` to GitHub without the
+creator's permission: its supplied terms permit game use but prohibit raw asset
+redistribution. A renamed archive, custom extension, Base64 string, encrypted
+bundle or client-side pack remains reversible redistribution and does not alter
+the license. The folder is ignored by Git; clones use the programmatic sushi
+fallback until a permitted replacement pack is installed. `references/` is
+local research material and is also ignored.
 
 Keep third-party notices with any private build. See
 [ATTRIBUTION.md](ATTRIBUTION.md).
@@ -139,7 +223,5 @@ coin blocks, castle maze routing, cyclic/track platforms, auto-scroll, swimming
 and a lives/world-map loop. Later reference levels are therefore not imported
 wholesale yet: doing so would still produce incomplete routes.
 
-The current 1-1 route remains an adapted subset: it has not yet been rebuilt to
-use the new region transport for its underground bonus room, shell behavior is
-not implemented, and the original finish is intentionally replaced by a moon
-portal.
+No copied reference route is shipped. The remaining gaps are engine features,
+not blockers for authoring original Super Kaguya courses with the current tools.
