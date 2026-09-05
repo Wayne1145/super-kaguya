@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "revision": "demo-2026-08-30.1",
+  "revocations": [],
   "packages": [
     {
       "id": "io.super-kaguya.core.lunar-dsl",
@@ -136,22 +137,29 @@
             {
               "id": "io.super-kaguya.assets.moon-icons",
               "range": "^1.0.0",
-              "kind": "optional"
+              "kind": "required"
             }
           ],
           "conflicts": [],
-          "capabilities": ["entity.item", "event.collect", "editor.palette"],
+          "capabilities": ["entity.item", "event.collect", "editor.palette", "render.sprite", "story.dialogue"],
           "content": {
             "kind": "item-definition",
             "schemaVersion": 1,
             "item": {
               "id": "moon-key",
-              "placement": "fixed",
-              "identity": "map-object-id",
-              "collectEvent": "key.collected",
+              "label": "月光碎片",
+              "sprite": "io.super-kaguya.assets.moon-icons:moon-crescent-lit",
+              "width": 22,
+              "height": 26,
+              "score": 25,
+              "actions": [
+                { "type": "heal", "amount": 5 },
+                { "type": "showMessage", "text": "MOONLIGHT +", "duration": 1.2 }
+              ],
               "editor": {
                 "category": "puzzle",
-                "label": "月之钥匙"
+                "label": "月光碎片",
+                "help": "工坊声明式收集物：拾取后恢复 5 点生命并获得 25 分。"
               }
             }
           }
@@ -194,22 +202,46 @@
             }
           ],
           "conflicts": [],
-          "capabilities": ["entity.component", "event.trigger", "render.overlay", "editor.inspector"],
+          "capabilities": ["entity.component", "event.trigger", "render.overlay", "editor.inspector", "story.dialogue"],
           "content": {
             "kind": "mechanic-definition",
             "schemaVersion": 1,
             "mechanic": {
               "id": "locked-gate",
-              "attachTo": ["completion-gate", "warp-gate", "mirror-gate"],
-              "properties": {
-                "requiredEnemyIds": { "type": "array", "items": { "type": "string" } },
-                "requiredKeyIds": { "type": "array", "items": { "type": "string" } }
-              },
-              "events": {
-                "unlock": {
-                  "when": "all-requirements-satisfied"
+              "description": "A bounded event example with a community enemy template.",
+              "counters": { "sentinels-defeated": 0 },
+              "entities": [
+                {
+                  "id": "moon-sentinel",
+                  "label": "月卫哨兵",
+                  "base": "enemy",
+                  "width": 34,
+                  "height": 50,
+                  "health": 20,
+                  "speed": 28,
+                  "patrolRange": 128,
+                  "damage": 10,
+                  "score": 40,
+                  "onDefeat": [{ "type": "addCounter", "counter": "sentinels-defeated", "amount": 1 }],
+                  "editor": {
+                    "label": "月卫哨兵",
+                    "category": "enemy",
+                    "help": "工坊敌人模板：20 点生命、短距离巡逻，击败后触发声明式事件。"
+                  }
                 }
-              }
+              ],
+              "handlers": [
+                {
+                  "id": "sentinel-defeated-message",
+                  "event": "enemy.defeat",
+                  "filter": { "definition": "io.super-kaguya.mechanics.locked-gate:moon-sentinel" },
+                  "cooldown": 0.2,
+                  "actions": [
+                    { "type": "addScore", "amount": 60 },
+                    { "type": "showMessage", "text": "LUNAR SENTINEL CLEARED", "duration": 1.8 }
+                  ]
+                }
+              ]
             }
           }
         }
@@ -283,43 +315,49 @@
           "conflicts": [],
           "capabilities": ["map.course", "map.region", "story.dialogue"],
           "content": {
-            "kind": "map-fragment",
+            "kind": "map-course",
             "schemaVersion": 1,
             "metadata": {
               "title": "月锁与低重力实验室",
-              "author": "Super Kaguya Team"
+              "author": "Super Kaguya Team",
+              "description": "可直接游玩的安全工坊示例，包含社区物品、敌人和低重力区域。",
+              "key": "lock-gravity-lab"
             },
-            "objects": [
-              {
-                "id": "key-a",
-                "type": "moon-key",
-                "x": 192,
-                "y": 384
-              },
-              {
-                "id": "gravity-a",
-                "type": "low-gravity-region",
-                "x": 320,
-                "y": 128,
-                "width": 320,
-                "height": 320,
-                "gravityMultiplier": 0.35,
-                "jumpMultiplier": 1.6
-              },
-              {
-                "id": "gate-a",
-                "type": "completion-gate",
-                "x": 768,
-                "y": 320,
-                "components": [
-                  {
-                    "type": "locked-gate",
-                    "requiredKeyIds": ["key-a"],
-                    "requiredEnemyIds": []
-                  }
-                ]
-              }
-            ]
+            "map": {
+              "type": "map",
+              "version": "1.10",
+              "tiledversion": "1.10",
+              "orientation": "orthogonal",
+              "renderorder": "right-down",
+              "width": 40,
+              "height": 9,
+              "tilewidth": 32,
+              "tileheight": 32,
+              "infinite": false,
+              "properties": [
+                { "name": "title", "type": "string", "value": "月锁与低重力实验室" },
+                { "name": "author", "type": "string", "value": "Super Kaguya Team" },
+                { "name": "background", "type": "string", "value": "lunar" },
+                { "name": "autoPortal", "type": "bool", "value": false },
+                { "name": "workshopDependencies", "type": "string", "value": "{\"schemaVersion\":1,\"packages\":[\"io.super-kaguya.items.moon-key\",\"io.super-kaguya.mechanics.locked-gate\"]}" }
+              ],
+              "layers": [
+                {
+                  "id": 1,
+                  "name": "Objects",
+                  "type": "objectgroup",
+                  "visible": true,
+                  "objects": [
+                    { "id": 1, "name": "Ground", "type": "Solid", "x": 0, "y": 256, "width": 1280, "height": 32, "visible": true, "properties": [{ "name": "visual", "type": "bool", "value": true }] },
+                    { "id": 2, "name": "Player", "type": "PlayerSpawn", "x": 64, "y": 256, "width": 0, "height": 0, "visible": true },
+                    { "id": 3, "name": "Moonlight", "type": "WorkshopItem", "x": 224, "y": 256, "width": 22, "height": 26, "visible": true, "properties": [{ "name": "definition", "type": "string", "value": "io.super-kaguya.items.moon-key:moon-key" }] },
+                    { "id": 4, "name": "Sentinel", "type": "WorkshopEntity", "x": 448, "y": 256, "width": 34, "height": 50, "visible": true, "properties": [{ "name": "definition", "type": "string", "value": "io.super-kaguya.mechanics.locked-gate:moon-sentinel" }] },
+                    { "id": 5, "name": "Moon Dust", "type": "LowGravityZone", "x": 576, "y": 64, "width": 320, "height": 192, "visible": true, "properties": [{ "name": "gravityScale", "type": "float", "value": 0.3 }, { "name": "jumpScale", "type": "float", "value": 1.7 }] },
+                    { "id": 6, "name": "Moon Portal", "type": "MoonPortal", "x": 1120, "y": 128, "width": 96, "height": 128, "visible": true }
+                  ]
+                }
+              ]
+            }
           }
         }
       ]

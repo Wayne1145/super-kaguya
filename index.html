@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self' https: http://127.0.0.1:* http://localhost:*; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'self'" />
     <title>Super Kaguya</title>
     <meta name="description" content="Super Kaguya is an open-source pixel platformer and course editor inspired by a lunar escape story." />
     <link rel="stylesheet" href="styles.css?v=20260831-1" />
@@ -184,7 +185,7 @@
                 <section><h4>安装文件</h4><div id="workshop-detail-files" class="workshop-file-list"></div></section>
                 <section><h4>依赖内容</h4><div id="workshop-detail-dependencies" class="workshop-dependency-list"></div></section>
               </div>
-              <footer><button id="workshop-detail-install" type="button">安装此内容</button><span id="workshop-detail-status"></span></footer>
+              <footer><button id="workshop-detail-install" type="button">安装此内容</button><button id="workshop-detail-uninstall" type="button" hidden>卸载</button><span id="workshop-detail-status"></span></footer>
             </article>
             <aside id="workshop-install" class="workshop-install" hidden><header><strong id="workshop-install-title"></strong><button id="workshop-install-cancel" type="button" aria-label="取消安装">X</button></header><p id="workshop-install-detail"></p><div id="workshop-dependencies"></div><div class="workshop-install-actions"><button id="workshop-install-confirm" type="button">确认安装</button></div></aside>
           </div>
@@ -221,7 +222,8 @@
       </div>
     </main>
 
-    <script src="config.js?v=20260831-1"></script>
-    <script src="game.js?v=20260831-1"></script>
+    <script src="config.js?v=20260905-1"></script>
+    <script src="workshop-runtime.js?v=20260905-1"></script>
+    <script src="game.js?v=20260905-1"></script>
   </body>
 </html>

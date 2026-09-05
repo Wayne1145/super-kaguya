@@ -163,10 +163,10 @@ Useful MIDI sources for inspiration and properly licensed starting material:
 The composition, MIDI arrangement, and SoundFont/sample library can have three
 different licenses. Record all three before bundling a rendered track.
 
-## Community Workshop demo
+## Community Workshop
 
-Choose **COMMUNITY WORKSHOP** on the title screen. The API URL is deployment
-configurable and saved locally; the default is
+Choose **COMMUNITY WORKSHOP** on the title screen. The API URL is configured by
+the deployment in `config.js`; the default is
 `http://127.0.0.1:55125/api/v1`. If it is unavailable the client falls back to
 the repository's six-package demo catalog within about one second.
 
@@ -174,23 +174,28 @@ the repository's six-package demo catalog within about one second.
 node workshop-server.js
 ```
 
-The zero-dependency demo backend exposes search, details, immutable versions,
-manifests, SHA-256 blobs, dependency resolution/lockfiles and reports. Run its
-end-to-end test with `node tools/workshop-smoke.cjs`. Full schemas, production
-architecture, security constraints, mod-platform references and a complete
-backend-generation prompt are in [docs/WORKSHOP_API.md](docs/WORKSHOP_API.md);
-the machine-readable contract is [workshop/openapi.json](workshop/openapi.json).
+The zero-dependency backend exposes search, details, immutable versions,
+manifests, SHA-256 blobs, dependency resolution/lockfiles, reports, revocations,
+and an authenticated publication endpoint. Publishing is disabled unless the
+deployer sets `WORKSHOP_PUBLISH_TOKEN`. Run `node tools/workshop-smoke.cjs` and
+`node tools/workshop-security-test.cjs`; validate author packages with
+`node tools/workshop-validate.cjs <file>`. The API contract is
+[workshop/openapi.json](workshop/openapi.json), schemas are under
+`workshop/schemas/v1/`, and author documentation is
+[docs/WORKSHOP_AUTHORING.md](docs/WORKSHOP_AUTHORING.md).
 
 Community packages are data only. The client rejects non-declarative entrypoints,
-unknown capabilities, non-JSON payloads and hash mismatches. It never imports or
-evaluates downloaded JavaScript. Installed packages and exact dependency
-versions are stored locally. The demo Moon Key package adds a compatible
-`工坊：月之钥匙` adapter to the editor palette; future item/mechanic types require
-an explicit trusted engine adapter before they become placeable.
+unknown fields/capabilities, scripts, external resources, invalid media magic,
+oversized responses, hash mismatches and revoked versions. It never imports or
+evaluates downloaded JavaScript. Installed items and entity templates become
+real editor components; installed maps enter the Custom list; PNG assets and
+audio are exposed only as bounded Blob URLs; mechanics run through a
+non-recursive, budgeted event/action interpreter. Exact dependency versions and
+hashes are embedded when the editor exports a course.
 
 For a deployed instance, edit `config.js` and set `workshopApiBaseUrl` to that
-instance's HTTPS `/api/v1` URL. A user-entered URL in the Workshop page overrides
-the deployment default on that browser.
+instance's HTTPS `/api/v1` URL. Players cannot override this address from the
+Workshop UI.
 
 ## Asset and rights note
 

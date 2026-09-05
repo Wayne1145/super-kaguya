@@ -25,7 +25,14 @@ http.createServer((request, response) => {
       response.writeHead(error.code === "ENOENT" ? 404 : 500).end("Not found");
       return;
     }
-    response.writeHead(200, { "Content-Type": contentTypes[path.extname(filePath)] || "application/octet-stream" });
+    response.writeHead(200, {
+      "Content-Type": contentTypes[path.extname(filePath)] || "application/octet-stream",
+      "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self' https: http://127.0.0.1:* http://localhost:*; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'self'",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "no-referrer",
+      "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+      "Cross-Origin-Opener-Policy": "same-origin",
+    });
     response.end(data);
   });
 }).listen(port, "127.0.0.1", () => {

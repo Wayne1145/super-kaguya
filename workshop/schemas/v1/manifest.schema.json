@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://super-kaguya.invalid/schemas/workshop/v1/manifest.schema.json",
+  "title": "Super Kaguya Workshop manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "type", "version", "engine", "license", "dependencies", "conflicts", "capabilities", "entrypoint", "files"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$", "maxLength": 128 },
+    "type": { "enum": ["map", "item", "mechanic", "asset", "music"] },
+    "version": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "versionId": { "type": "string", "maxLength": 164 },
+    "engine": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "license": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "publishedAt": { "type": "string", "format": "date-time" },
+    "dependencies": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/dependency" } },
+    "conflicts": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/dependency" } },
+    "capabilities": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "enum": ["entity.component", "event.trigger", "editor.palette", "render.sprite", "entity.item", "event.collect", "render.overlay", "editor.inspector", "audio.track-metadata", "world.region", "physics.gravity", "map.fragment", "map.course", "map.region", "story.dialogue"] } },
+    "entrypoint": { "type": "object", "additionalProperties": false, "required": ["kind", "file"], "properties": { "kind": { "const": "declarative" }, "file": { "const": "content.json" } } },
+    "files": { "type": "array", "minItems": 1, "maxItems": 1, "items": { "type": "object", "additionalProperties": false, "required": ["path", "sha256", "size", "mime"], "properties": { "path": { "const": "content.json" }, "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "size": { "type": "integer", "minimum": 2, "maximum": 4194304 }, "mime": { "const": "application/json" } } } },
+    "signature": { "type": "object", "additionalProperties": false, "required": ["algorithm", "keyId", "value"], "properties": { "algorithm": { "const": "Ed25519" }, "keyId": { "type": "string", "minLength": 3, "maxLength": 128 }, "value": { "type": "string", "minLength": 40, "maxLength": 256 } } }
+  },
+  "$defs": {
+    "dependency": { "type": "object", "additionalProperties": false, "required": ["id", "range", "kind"], "properties": { "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)+$", "maxLength": 128 }, "range": { "type": "string", "minLength": 1, "maxLength": 64 }, "kind": { "enum": ["required", "optional", "incompatible"] } } }
+  }
+}

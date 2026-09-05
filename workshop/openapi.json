@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Super Kaguya Community Workshop Demo API",
-    "version": "0.1.0",
-    "description": "Read-only seed catalog, content-addressed blobs, dependency resolution, and an in-memory report demonstration. Community packages are declarative JSON and never executable JavaScript."
+    "title": "Super Kaguya Community Workshop API",
+    "version": "1.0.0",
+    "description": "Validated declarative packages, content-addressed blobs, dependency resolution, authenticated immutable publication, revocation, and reports. Community packages never execute JavaScript."
   },
   "servers": [
     {
@@ -127,6 +127,20 @@
             }
           },
           "400": { "$ref": "#/components/responses/Problem" }
+        }
+      },
+      "post": {
+        "tags": ["catalog"],
+        "operationId": "publishPackageVersion",
+        "summary": "Publish one validated immutable package version",
+        "security": [{ "publisherToken": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object" } } } },
+        "responses": {
+          "201": { "description": "Version published atomically" },
+          "400": { "$ref": "#/components/responses/Problem" },
+          "401": { "$ref": "#/components/responses/Problem" },
+          "409": { "$ref": "#/components/responses/Problem" },
+          "503": { "$ref": "#/components/responses/Problem" }
         }
       }
     },
@@ -278,6 +292,24 @@
         }
       }
     },
+    "/api/v1/revocations": {
+      "get": {
+        "tags": ["moderation"],
+        "operationId": "listRevocations",
+        "summary": "List security-revoked immutable versions",
+        "responses": { "200": { "description": "Current revocation list", "content": { "application/json": { "schema": { "type": "object" } } } } }
+      }
+    },
+    "/api/v1/admin/revoke": {
+      "post": {
+        "tags": ["moderation"],
+        "operationId": "revokePackageVersion",
+        "summary": "Immediately revoke an active immutable version",
+        "security": [{ "publisherToken": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["versionId", "reason"], "properties": { "versionId": { "type": "string" }, "reason": { "type": "string", "minLength": 3, "maxLength": 240 } } } } } },
+        "responses": { "200": { "description": "Version revoked" }, "400": { "$ref": "#/components/responses/Problem" }, "401": { "$ref": "#/components/responses/Problem" }, "404": { "$ref": "#/components/responses/Problem" } }
+      }
+    },
     "/api/v1/reports": {
       "post": {
         "tags": ["moderation"],
@@ -307,6 +339,9 @@
     }
   },
   "components": {
+    "securitySchemes": {
+      "publisherToken": { "type": "http", "scheme": "bearer", "description": "Deployment-controlled publisher/admin token. Publishing remains disabled when WORKSHOP_PUBLISH_TOKEN is unset." }
+    },
     "parameters": {
       "PackageId": {
         "name": "packageId",

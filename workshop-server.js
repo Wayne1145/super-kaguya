@@ -5,20 +5,22 @@ const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 const { URL } = require('node:url');
+const WorkshopCore = require('./workshop-runtime');
 
 const DEFAULT_HOST = process.env.WORKSHOP_HOST || '127.0.0.1';
 const DEFAULT_PORT = readInteger(process.env.WORKSHOP_PORT, 55125, 1, 65535);
 const DEFAULT_MAX_BODY_BYTES = readInteger(
   process.env.WORKSHOP_MAX_BODY_BYTES,
-  64 * 1024,
+  5 * 1024 * 1024,
   1024,
-  1024 * 1024,
+  8 * 1024 * 1024,
 );
 const DEFAULT_CATALOG_FILE = path.join(__dirname, 'workshop', 'catalog.json');
 const DEFAULT_OPENAPI_FILE = path.join(__dirname, 'workshop', 'openapi.json');
 const PACKAGE_TYPES = new Set(['map', 'item', 'mechanic', 'asset', 'music']);
 const DEPENDENCY_KINDS = new Set(['required', 'optional', 'incompatible']);
 const REPORT_REASONS = new Set(['copyright', 'malware', 'broken', 'misleading', 'other']);
+const DEFAULT_RATE_LIMIT = readInteger(process.env.WORKSHOP_RATE_LIMIT, 240, 30, 10000);
 
 class HttpError extends Error {
   constructor(status, title, detail, errors = undefined) {
@@ -197,6 +199,7 @@ function buildCatalogIndex(catalog) {
     throw new Error('catalog must use schemaVersion 1 and contain packages[]');
   }
 
+  const revokedVersionIds = new Set((Array.isArray(catalog.revocations) ? catalog.revocations : []).map((entry) => entry?.versionId).filter(Boolean));
   const packages = [];
   const packagesById = new Map();
   const versionsById = new Map();
@@ -213,7 +216,9 @@ function buildCatalogIndex(catalog) {
       throw new Error(`${packageRecord.id} must contain at least one version`);
     }
 
-    const indexedVersions = packageRecord.versions.map((versionRecord, versionIndex) => {
+    const activeVersions = packageRecord.versions.filter((versionRecord) => !revokedVersionIds.has(`${packageRecord.id}@${versionRecord.version}`));
+    if (!activeVersions.length) continue;
+    const indexedVersions = activeVersions.map((versionRecord, versionIndex) => {
       assertObject(versionRecord, `${packageRecord.id}.versions[${versionIndex}]`);
       if (!parseVersion(versionRecord.version)) {
         throw new Error(`${packageRecord.id} has invalid version ${versionRecord.version}`);
@@ -230,6 +235,8 @@ function buildCatalogIndex(catalog) {
       if (versionsById.has(versionId)) throw new Error(`duplicate version ID: ${versionId}`);
 
       const contentBuffer = Buffer.from(stableJson(versionRecord.content || {}), 'utf8');
+      if (contentBuffer.length > WorkshopCore.LIMITS.contentBytes) throw new Error(`${versionId} content exceeds the package limit`);
+      WorkshopCore.validateContent(packageRecord.type, versionRecord.content || {});
       const contentHash = sha256(contentBuffer);
       blobsByHash.set(contentHash, {
         buffer: contentBuffer,
@@ -261,7 +268,9 @@ function buildCatalogIndex(catalog) {
           },
         ],
       };
+      if (versionRecord.signature != null) manifest.signature = versionRecord.signature;
       const manifestBuffer = Buffer.from(stableJson(manifest), 'utf8');
+      WorkshopCore.validateManifest(manifest);
       const manifestHash = sha256(manifestBuffer);
       const indexedVersion = {
         ...versionRecord,
@@ -282,7 +291,7 @@ function buildCatalogIndex(catalog) {
   }
 
   packages.sort((left, right) => left.id.localeCompare(right.id));
-  return { catalog, packages, packagesById, versionsById, blobsByHash };
+  return { catalog, packages, packagesById, versionsById, blobsByHash, revokedVersionIds };
 }
 
 function loadJsonFile(filePath, label) {
@@ -327,7 +336,7 @@ function publicPackage(packageRecord, includeVersions = false) {
 }
 
 function parseAllowedOrigins(value) {
-  const origins = String(value === undefined ? '*' : value)
+  const origins = String(value === undefined ? 'http://127.0.0.1:55124,http://localhost:55124' : value)
     .split(',')
     .map((entry) => entry.trim())
     .filter(Boolean);
@@ -373,6 +382,33 @@ function sendProblem(res, requestId, error) {
   };
   if (error instanceof HttpError && error.errors) payload.errors = error.errors;
   sendJson(res, status, payload, { 'Content-Type': 'application/problem+json; charset=utf-8' });
+}
+
+function tokenMatches(request, expected) {
+  if (!expected) return false;
+  const supplied = String(request.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  const left = Buffer.from(supplied); const right = Buffer.from(expected);
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+function writeJsonAtomic(filename, value) {
+  const directory = path.dirname(filename);
+  const temporary = path.join(directory, `.${path.basename(filename)}.${process.pid}.${Date.now()}.tmp`);
+  fs.writeFileSync(temporary, stableJson(value), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+  fs.renameSync(temporary, filename);
+}
+
+function validatePublishedPackage(record) {
+  assertObject(record, 'package');
+  assertOnlyKeys(record, ['id', 'type', 'title', 'summary', 'author', 'license', 'tags', 'featured', 'downloads', 'createdAt', 'updatedAt', 'versions'], 'package');
+  for (const [key, maximum] of Object.entries({ title: 80, summary: 400, author: 80, license: 64 })) {
+    if (typeof record[key] !== 'string' || record[key].length < 1 || record[key].length > maximum) throw new HttpError(400, 'Invalid Package', `${key} must be a string of at most ${maximum} characters.`);
+  }
+  if (!Array.isArray(record.tags) || record.tags.length > 16 || record.tags.some((tag) => typeof tag !== 'string' || tag.length > 32)) throw new HttpError(400, 'Invalid Package', 'tags must contain at most 16 short strings.');
+  if (!Array.isArray(record.versions) || record.versions.length !== 1) throw new HttpError(400, 'Invalid Package', 'A publication request must contain exactly one immutable version.');
+  const version = record.versions[0];
+  assertOnlyKeys(version, ['version', 'engine', 'license', 'publishedAt', 'dependencies', 'conflicts', 'capabilities', 'content', 'signature'], 'package.versions[0]');
+  return record;
 }
 
 async function readJsonBody(req, maxBodyBytes) {
@@ -696,6 +732,11 @@ function resolvePackages(index, body) {
       type: packageRecord.type,
       version: version.version,
       versionId: version.versionId,
+      title: packageRecord.title,
+      author: packageRecord.author,
+      license: version.manifest.license,
+      capabilities: version.manifest.capabilities,
+      dependencies: version.dependencies,
       manifestSha256: version.manifestHash,
       manifestUrl: `/api/v1/versions/${encodeURIComponent(version.versionId)}/manifest`,
       files: version.manifest.files.map((file) => ({
@@ -716,6 +757,7 @@ function resolvePackages(index, body) {
       version: entry.version,
       versionId: entry.versionId,
       manifestSha256: entry.manifestSha256,
+      contentSha256: entry.files.find((file) => file.path === 'content.json')?.sha256,
       files: entry.files.map(({ path: filePath, sha256: hash, size, mime }) => ({
         path: filePath,
         sha256: hash,
@@ -752,14 +794,25 @@ function createWorkshopServer(options = {}) {
   const allowedOrigins = parseAllowedOrigins(
     options.allowedOrigins === undefined ? process.env.WORKSHOP_ALLOWED_ORIGINS : options.allowedOrigins,
   );
-  const index = buildCatalogIndex(loadJsonFile(catalogFile, 'workshop catalog'));
+  let index = buildCatalogIndex(loadJsonFile(catalogFile, 'workshop catalog'));
   const openApi = loadJsonFile(openApiFile, 'OpenAPI document');
   const reports = [];
+  const publishToken = options.publishToken === undefined ? process.env.WORKSHOP_PUBLISH_TOKEN : options.publishToken;
+  const rateLimit = options.rateLimit || DEFAULT_RATE_LIMIT;
+  const rateBuckets = new Map();
 
   const server = http.createServer(async (req, res) => {
     const requestId = crypto.randomUUID();
     setCommonHeaders(req, res, allowedOrigins, requestId);
     try {
+      const now = Date.now(); const address = req.socket.remoteAddress || 'unknown';
+      const bucket = rateBuckets.get(address);
+      if (!bucket || now - bucket.startedAt >= 60000) rateBuckets.set(address, { startedAt: now, count: 1 });
+      else {
+        bucket.count += 1;
+        if (bucket.count > rateLimit) { res.setHeader('Retry-After', String(Math.max(1, Math.ceil((60000 - (now - bucket.startedAt)) / 1000)))); throw new HttpError(429, 'Too Many Requests', 'Workshop request rate limit exceeded.'); }
+      }
+      if (rateBuckets.size > 10000) for (const [key, value] of rateBuckets) if (now - value.startedAt >= 60000) rateBuckets.delete(key);
       const origin = req.headers.origin;
       if (origin && !allowedOrigins.has('*') && !allowedOrigins.has(origin)) {
         throw new HttpError(403, 'Origin Not Allowed', 'This Origin is not allowed by WORKSHOP_ALLOWED_ORIGINS.');
@@ -808,6 +861,47 @@ function createWorkshopServer(options = {}) {
       }
       if (req.method === 'GET' && url.pathname === '/api/v1/categories') {
         sendJson(res, 200, { items: buildCategories(index) });
+        return;
+      }
+      if (req.method === 'GET' && url.pathname === '/api/v1/revocations') {
+        sendJson(res, 200, { revision: index.catalog.revision, items: Array.isArray(index.catalog.revocations) ? index.catalog.revocations : [] });
+        return;
+      }
+      if (req.method === 'POST' && url.pathname === '/api/v1/packages') {
+        if (!publishToken) throw new HttpError(503, 'Publishing Disabled', 'Set WORKSHOP_PUBLISH_TOKEN to enable authenticated publication.');
+        if (!tokenMatches(req, publishToken)) throw new HttpError(401, 'Unauthorized', 'A valid Workshop publisher bearer token is required.');
+        const body = await readJsonBody(req, Math.min(maxBodyBytes, WorkshopCore.LIMITS.contentBytes));
+        const incoming = validatePublishedPackage(body.package || body);
+        const candidate = JSON.parse(JSON.stringify(index.catalog));
+        candidate.revocations = Array.isArray(candidate.revocations) ? candidate.revocations : [];
+        const existing = candidate.packages.find((record) => record.id === incoming.id);
+        if (existing) {
+          if (existing.type !== incoming.type) throw new HttpError(409, 'Package Conflict', 'An existing package cannot change type.');
+          const version = incoming.versions[0].version;
+          if (existing.versions.some((entry) => entry.version === version)) throw new HttpError(409, 'Immutable Version', 'Published versions cannot be overwritten.');
+          existing.title = incoming.title; existing.summary = incoming.summary; existing.tags = incoming.tags; existing.updatedAt = new Date().toISOString();
+          existing.versions.push(incoming.versions[0]);
+        } else candidate.packages.push(incoming);
+        candidate.revision = `publish-${Date.now()}`;
+        let nextIndex;
+        try { nextIndex = buildCatalogIndex(candidate); }
+        catch (error) { throw new HttpError(400, 'Invalid Package', error.message); }
+        writeJsonAtomic(catalogFile, candidate); index = nextIndex;
+        sendJson(res, 201, { id: incoming.id, versionId: `${incoming.id}@${incoming.versions[0].version}`, revision: candidate.revision });
+        return;
+      }
+      if (req.method === 'POST' && url.pathname === '/api/v1/admin/revoke') {
+        if (!publishToken || !tokenMatches(req, publishToken)) throw new HttpError(401, 'Unauthorized', 'A valid Workshop administrator bearer token is required.');
+        const body = await readJsonBody(req, maxBodyBytes);
+        assertOnlyKeys(body, ['versionId', 'reason'], 'body');
+        if (!index.versionsById.has(body.versionId)) throw new HttpError(404, 'Version Not Found', 'Only an active catalog version can be revoked.');
+        if (typeof body.reason !== 'string' || body.reason.length < 3 || body.reason.length > 240) throw new HttpError(400, 'Invalid Revocation', 'reason must contain 3 to 240 characters.');
+        const candidate = JSON.parse(JSON.stringify(index.catalog));
+        candidate.revocations = Array.isArray(candidate.revocations) ? candidate.revocations : [];
+        candidate.revocations.push({ versionId: body.versionId, reason: body.reason, revokedAt: new Date().toISOString() });
+        candidate.revision = `revoke-${Date.now()}`;
+        const nextIndex = buildCatalogIndex(candidate); writeJsonAtomic(catalogFile, candidate); index = nextIndex;
+        sendJson(res, 200, { versionId: body.versionId, revoked: true, revision: candidate.revision });
         return;
       }
       if (req.method === 'GET' && segments.join('/') === 'api/v1/packages') {
@@ -919,7 +1013,7 @@ function createWorkshopServer(options = {}) {
     }
   });
 
-  server.workshop = { index, reports };
+  server.workshop = { get index() { return index; }, reports };
   return server;
 }
 
@@ -933,10 +1027,10 @@ if (require.main === module) {
   }
   if (server) {
     server.listen(DEFAULT_PORT, DEFAULT_HOST, () => {
-      process.stdout.write(`Super Kaguya Workshop demo: http://${DEFAULT_HOST}:${DEFAULT_PORT}/\n`);
+      process.stdout.write(`Super Kaguya Workshop: http://${DEFAULT_HOST}:${DEFAULT_PORT}/ (publishing ${process.env.WORKSHOP_PUBLISH_TOKEN ? 'enabled' : 'disabled'})\n`);
     });
     const stop = (signal) => {
-      process.stdout.write(`Received ${signal}; closing workshop demo.\n`);
+      process.stdout.write(`Received ${signal}; closing Workshop service.\n`);
       server.close(() => process.exit(0));
     };
     process.once('SIGINT', () => stop('SIGINT'));

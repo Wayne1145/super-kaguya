@@ -80,7 +80,17 @@ async function main() {
       }),
     }));
     assert.equal(requiredOnly.ok, true);
-    assert.equal(requiredOnly.packages.length, 4);
+    assert.equal(requiredOnly.packages.length, 5);
+
+    const revocations = readJson(await request(baseUrl, '/api/v1/revocations'));
+    assert.deepEqual(revocations.items, []);
+
+    const publishingDisabled = await request(baseUrl, '/api/v1/packages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    assert.equal(publishingDisabled.status, 503);
 
     const missing = readJson(await request(baseUrl, '/api/v1/resolve', {
       method: 'POST',

@@ -58,6 +58,7 @@ const workshopList = document.querySelector("#workshop-list");
 const workshopMessage = document.querySelector("#workshop-message");
 const workshopDetail = document.querySelector("#workshop-detail");
 const workshopDetailInstall = document.querySelector("#workshop-detail-install");
+const workshopDetailUninstall = document.querySelector("#workshop-detail-uninstall");
 const workshopInstallPanel = document.querySelector("#workshop-install");
 const workshopDependencies = document.querySelector("#workshop-dependencies");
 const shopScreen = document.querySelector("#shop-screen");
@@ -259,9 +260,17 @@ const levelDefinitions = [
   { key: "all-mechanics", title: "机制综合测试", subtitle: "传送、月尘、Boss 与剧情", url: "maps/all-mechanics-test.json", unlock: 0, startsPowered: true },
 ];
 let customLevelDefinitions = [];
+let workshopLevelDefinitions = [];
 let mapTheme = "lunar";
+let workshopBackgroundImage = null;
 let enemySpeedMultiplier = 1;
 let playerArtSource = "assets/kaguya.png";
+const workshopPickups = [];
+let initialWorkshopPickups = [];
+const workshopDecorations = [];
+const workshopImageCache = new Map();
+const workshopAudioIds = new Set();
+let workshopTimerElapsed = 0;
 
 const playerSprite = new Image();
 playerSprite.src = "assets/kaguya.png";
@@ -835,6 +844,48 @@ const objectFactories = {
       defeatedCounted: false,
     });
   },
+  WorkshopItem(object) {
+    const properties = tiledProperties(object.properties);
+    const definitionId = String(properties.definition || "");
+    const definition = workshopRuntime?.getItem(definitionId);
+    if (!definition) throw new Error(`Missing installed Workshop item definition: ${definitionId}`);
+    workshopPickups.push({
+      id: object.id,
+      definitionId,
+      definition,
+      x: object.x,
+      y: object.y,
+      width: definition.width || object.width || 24,
+      height: definition.height || object.height || 24,
+      phase: (object.id * 0.67) % (Math.PI * 2),
+      collected: false,
+    });
+  },
+  WorkshopEntity(object) {
+    const properties = tiledProperties(object.properties);
+    const definitionId = String(properties.definition || "");
+    const definition = workshopRuntime?.getEntity(definitionId);
+    if (!definition) throw new Error(`Missing installed Workshop entity definition: ${definitionId}`);
+    const commonProperties = [
+      { name: "name", value: definition.label },
+      { name: "health", value: definition.health || 1 },
+      { name: "speed", value: definition.speed ?? 36 },
+      { name: "patrolRange", value: definition.patrolRange || 0 },
+      { name: "direction", value: Number(properties.direction) < 0 ? -1 : 1 },
+    ];
+    const adapted = { ...object, width: definition.width || object.width, height: definition.height || object.height, properties: commonProperties };
+    if (definition.base === "enemy") {
+      objectFactories.Enemy(adapted);
+      Object.assign(enemies.at(-1), { workshopDefinition: definition, workshopDefinitionId: definitionId, scoreValue: definition.score ?? 20, contactDamage: definition.damage ?? 10 });
+    } else if (definition.base === "boss") {
+      objectFactories.Boss(adapted);
+      Object.assign(bosses.at(-1), { workshopDefinition: definition, workshopDefinitionId: definitionId, scoreValue: definition.score ?? 100 });
+    } else if (definition.base === "hazard") {
+      lunarRifts.push({ id: object.id, name: definition.label, x: object.x, y: object.y, width: definition.width || object.width || 32, height: definition.height || object.height || 32, damage: definition.damage || 10, interval: 0.7, workshopDefinition: definition });
+    } else {
+      workshopDecorations.push({ id: object.id, x: object.x, y: object.y, width: definition.width || object.width || 32, height: definition.height || object.height || 32, definition });
+    }
+  },
 };
 
 function shuffledFoodIndices(previousIndex = -1) {
@@ -873,6 +924,7 @@ function areaAtPoint(x, y = worldHeight / 2) {
 }
 
 function setActiveAreaAt(x, y = player.y) {
+  const previousArea = activeArea;
   const rect = x === player.x && y === player.y
     ? playerRect()
     : { left: x - 1, right: x + 1, top: y - 1, bottom: y + 1 };
@@ -885,6 +937,7 @@ function setActiveAreaAt(x, y = player.y) {
       || Number(right.area === activeArea) - Number(left.area === activeArea)
       || left.area.id - right.area.id);
   activeArea = candidates[0]?.area || null;
+  if (activeArea && activeArea !== previousArea) workshopRuntime?.emit("region.enter", { regionId: activeArea.id, name: activeArea.name });
   return activeArea;
 }
 
@@ -1054,6 +1107,7 @@ function collectKey(key) {
   addDamageNumber(key.x, key.y - key.height, 0, "#fff09c", `MOON KEY #${key.id}`);
   allUnlockables().forEach((item) => { item.lockPulse = 0.35; });
   updateHudTester();
+  workshopRuntime.emit("key.collect", { objectId: key.id });
   return true;
 }
 
@@ -1061,7 +1115,20 @@ function markEnemyDefeated(enemy) {
   if (!enemy || enemy.defeated) return;
   enemy.defeated = true;
   defeatedEnemyIds.add(enemy.id);
+  if (enemy.workshopDefinition?.onDefeat?.length) workshopRuntime.runActions(enemy.workshopDefinition.onDefeat, enemy.workshopDefinition.packageId, { objectId: enemy.id, entityKind: enemy.kind, definition: enemy.workshopDefinitionId });
+  workshopRuntime.emit("enemy.defeat", { objectId: enemy.id, entityKind: enemy.kind, definition: enemy.workshopDefinitionId || null });
   allUnlockables().forEach((item) => { item.lockPulse = 0.35; });
+}
+
+function collectWorkshopItem(pickup) {
+  if (!pickup || pickup.collected) return false;
+  pickup.collected = true;
+  const definition = pickup.definition;
+  if (definition.score) addScore(definition.score);
+  workshopRuntime.runActions(definition.actions, definition.packageId, { objectId: pickup.id, definition: pickup.definitionId });
+  if (definition.collectAudio) playAudio(definition.collectAudio.includes(":") ? definition.collectAudio : `${definition.packageId}:${definition.collectAudio}`);
+  workshopRuntime.emit("item.collect", { objectId: pickup.id, packageId: definition.packageId, definition: pickup.definitionId });
+  return true;
 }
 
 function generateSurfaceSushi() {
@@ -1162,7 +1229,19 @@ async function loadMap(url, requestId) {
   const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) throw new Error(`Unable to load map (${response.status}): ${url}`);
   const map = await response.json();
+  if (!(await ensureWorkshopDependencies(map))) return false;
   return loadMapData(map, requestId);
+}
+
+function safeImageSource(source) {
+  if (String(source).startsWith("workshop:")) {
+    const asset = workshopRuntime.getAsset(String(source).slice("workshop:".length));
+    return asset?.url || null;
+  }
+  try {
+    const url = new URL(source, window.location.href);
+    return url.origin === window.location.origin || url.protocol === "blob:" ? url.href : null;
+  } catch { return null; }
 }
 
 function loadMapData(map, requestId) {
@@ -1177,12 +1256,17 @@ function loadMapData(map, requestId) {
   blockVerticalOffset = Number(mapProperties.blockVerticalOffset) || 0;
   classicMarioRules = mapProperties.referenceLevel === "Super Mario Bros. (NES) World 1-1";
   mapTheme = ["lunar", "dawn", "night"].includes(mapProperties.background) ? mapProperties.background : "lunar";
+  workshopBackgroundImage = null;
+  if (typeof mapProperties.backgroundArt === "string" && mapProperties.backgroundArt.startsWith("workshop:")) {
+    const backgroundAsset = workshopRuntime.getAsset(mapProperties.backgroundArt.slice("workshop:".length));
+    if (backgroundAsset?.url) { workshopBackgroundImage = new Image(); workshopBackgroundImage.src = backgroundAsset.url; }
+  }
   timeLimit = clampNumber(mapProperties.timeLimit, 0, 7200, DEFAULT_TIME_LIMIT);
   startingScore = clampNumber(mapProperties.startingScore, 0, 999999, 0);
   timeRemaining = timeLimit;
   const requestedEnemySpeed = Number(mapProperties.enemySpeed);
   enemySpeedMultiplier = Math.max(0, Math.min(4, Number.isFinite(requestedEnemySpeed) ? requestedEnemySpeed : 0.32)) / 0.32;
-  const requestedArt = typeof mapProperties.characterArt === "string" && mapProperties.characterArt.trim() ? mapProperties.characterArt.trim() : "assets/kaguya.png";
+  const requestedArt = safeImageSource(typeof mapProperties.characterArt === "string" && mapProperties.characterArt.trim() ? mapProperties.characterArt.trim() : "assets/kaguya.png") || new URL("assets/kaguya.png", window.location.href).href;
   if (requestedArt !== playerArtSource) { playerArtSource = requestedArt; playerSprite.src = requestedArt; }
   collisionSolids = [];
   blocks = [];
@@ -1206,6 +1290,8 @@ function loadMapData(map, requestId) {
   storyEvents = [];
   collectibles = [];
   keyPickups = [];
+  workshopPickups.length = 0;
+  workshopDecorations.length = 0;
   collectedKeyIds = new Set();
   defeatedEnemyIds = new Set();
   enemies = [];
@@ -1250,6 +1336,7 @@ function loadMapData(map, requestId) {
   staticCollisionSolids = collisionSolids.filter((solid) => !blocks.includes(solid));
   initialCollectibles = collectibles.map((pickup) => ({ ...pickup }));
   initialKeyPickups = keyPickups.map((pickup) => ({ ...pickup }));
+  initialWorkshopPickups = workshopPickups.map((pickup) => ({ ...pickup }));
   activeArea = areaAtPoint(playerSpawn.x, playerSpawn.y);
   mapReady = true;
   return true;
@@ -1271,6 +1358,7 @@ function resetLevel() {
   collectedKeyIds = checkpointKeyIds;
   defeatedEnemyIds = checkpointEnemyIds;
   keyPickups = initialKeyPickups.map((pickup) => ({ ...pickup, collected: collectedKeyIds.has(pickup.id) }));
+  workshopPickups.splice(0, workshopPickups.length, ...initialWorkshopPickups.map((pickup) => ({ ...pickup, collected: false })));
   gameOver = false;
   paused = false;
   pauseScreen.hidden = true;
@@ -1405,6 +1493,8 @@ function resetLevel() {
   sushiMotes = [];
   bossProjectiles = [];
   damageNumbers = [];
+  workshopRuntime.resetLevel();
+  workshopTimerElapsed = 0;
   activeWarp = null;
   warpCooldown = 0;
   warpExitGateId = null;
@@ -2004,17 +2094,43 @@ drawMusicPixelIcon();
 
 const WORKSHOP_INSTALL_KEY = "super-kaguya-workshop-installed-v1";
 const WORKSHOP_ENGINE_VERSION = "0.8.0";
-const WORKSHOP_TYPES = new Set(["map", "item", "mechanic", "asset", "music"]);
-const WORKSHOP_CAPABILITIES = new Set([
-  "entity.component", "event.trigger", "editor.palette", "render.sprite", "entity.item", "event.collect",
-  "render.overlay", "editor.inspector", "audio.track-metadata", "world.region", "physics.gravity", "map.fragment",
-  "map.course", "map.region", "story.dialogue",
-]);
+const WORKSHOP_CORE = globalThis.SuperKaguyaWorkshop;
+if (!WORKSHOP_CORE) throw new Error("workshop-runtime.js must load before game.js");
+const WORKSHOP_TYPES = WORKSHOP_CORE.PACKAGE_TYPES;
+const WORKSHOP_CAPABILITIES = WORKSHOP_CORE.CAPABILITIES;
+
+function applyWorkshopAction(action) {
+  if (!mapReady || gameOver || courseComplete) return false;
+  if (action.type === "addScore") addScore(action.amount);
+  else if (action.type === "heal") { health = Math.max(0, Math.min(100, health + action.amount)); updateHudTester(); }
+  else if (action.type === "damagePlayer") damagePlayer(action.amount);
+  else if (action.type === "grantPower") {
+    if (action.power === "big") beginTransformation();
+    else if (action.power === "fire") { if (player.size !== "big") beginTransformation(); player.fire = true; }
+    else if (action.power === "star") player.starTime = Math.max(player.starTime, action.duration || STAR_TIME);
+  } else if (action.type === "showMessage") {
+    stateLabel.textContent = action.text;
+    window.setTimeout(() => { if (!gameOver && !courseComplete && !activeStory) stateLabel.textContent = "IDLE"; }, Math.min(12000, Math.max(200, (action.duration || 2) * 1000)));
+  } else if (action.type === "setGravity") {
+    player.gravityDirection = action.direction;
+    player.gravityFlipTime = 0.35;
+  }
+  return true;
+}
+
+const workshopRuntime = WORKSHOP_CORE.createRuntime({
+  applyAction: applyWorkshopAction,
+  playAudio: (id, options) => playAudio(id, options),
+});
 
 function readInstalledWorkshopPackages() {
   try {
     const parsed = JSON.parse(localStorage.getItem(WORKSHOP_INSTALL_KEY) || "{}");
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed).filter(([, entry]) => {
+      try { WORKSHOP_CORE.validatePackage(entry); return true; }
+      catch (error) { console.warn("Discarding invalid installed Workshop package", error); return false; }
+    }));
   } catch { return {}; }
 }
 
@@ -2026,6 +2142,57 @@ let pendingWorkshopInstall = null;
 let pendingWorkshopResolver = null;
 let selectedWorkshopPackage = null;
 let selectedWorkshopResolution = null;
+let revokedWorkshopVersions = new Set();
+
+function workshopAssetImage(reference, packageId = "") {
+  if (!reference) return null;
+  const key = reference.includes(":") ? reference : `${packageId}:${reference}`;
+  if (workshopImageCache.has(key)) return workshopImageCache.get(key);
+  const asset = workshopRuntime.getAsset(key);
+  if (!asset?.url) return null;
+  const image = new Image(); image.decoding = "async"; image.src = asset.url;
+  workshopImageCache.set(key, image);
+  return image;
+}
+
+function pruneBrokenWorkshopDependencies() {
+  let changed = false; let passChanged = true;
+  while (passChanged) {
+    passChanged = false;
+    for (const [id, entry] of Object.entries(installedWorkshopPackages)) {
+      const missingRequired = (entry.manifest?.dependencies || []).some((dependency) => dependency.kind === "required" && !installedWorkshopPackages[dependency.id]);
+      if (missingRequired || revokedWorkshopVersions.has(`${id}@${entry.version}`)) {
+        delete installedWorkshopPackages[id]; changed = true; passChanged = true;
+      }
+    }
+  }
+  return changed;
+}
+
+function syncWorkshopRuntime() {
+  pruneBrokenWorkshopDependencies();
+  for (const id of workshopAudioIds) audioRegistry.delete(id);
+  workshopAudioIds.clear();
+  workshopRuntime.setPackages(Object.values(installedWorkshopPackages));
+  workshopImageCache.clear();
+  for (const track of workshopRuntime.listTracks()) {
+    const resolved = workshopRuntime.getTrack(`${track.packageId}:${track.id}`);
+    if (resolved?.url) {
+      const id = `${track.packageId}:${track.id}`;
+      if (registerAudio(id, { url: resolved.url, category: track.category || "level", loop: Boolean(track.loop) })) workshopAudioIds.add(id);
+    }
+  }
+  workshopLevelDefinitions = workshopRuntime.listMaps().map((entry) => ({
+    key: `workshop-map:${entry.packageId}`,
+    title: entry.title,
+    author: entry.author || installedWorkshopPackages[entry.packageId]?.manifest?.id || "Workshop",
+    description: entry.description || "工坊声明式关卡",
+    map: entry.map,
+    workshopPackageId: entry.packageId,
+  }));
+}
+
+syncWorkshopRuntime();
 
 function saveInstalledWorkshopPackages() {
   try { localStorage.setItem(WORKSHOP_INSTALL_KEY, JSON.stringify(installedWorkshopPackages)); return true; } catch { return false; }
@@ -2036,16 +2203,22 @@ function workshopApiBase() {
   const value = deployed || "http://127.0.0.1:55125/api/v1";
   try {
     const url = new URL(value, window.location.href);
+    const local = ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname);
+    if (url.protocol !== "https:" && !(url.protocol === "http:" && local)) throw new Error("远程工坊 API 必须使用 HTTPS");
+    url.username = ""; url.password = ""; url.hash = ""; url.search = "";
     url.pathname = url.pathname.replace(/\/$/, "");
     return url.href.replace(/\/$/, "");
   } catch { return "http://127.0.0.1:55125/api/v1"; }
 }
 
 function workshopUrl(reference) {
-  if (/^https?:\/\//i.test(reference)) return reference;
   const base = new URL(workshopApiBase());
-  if (String(reference).startsWith("/")) return `${base.origin}${reference}`;
-  return `${workshopApiBase()}/${String(reference).replace(/^\//, "")}`;
+  const resolved = new URL(String(reference), String(reference).startsWith("/") ? base.origin : `${workshopApiBase()}/`);
+  const configuredOrigins = new Set([base.origin, ...(window.SUPER_KAGUYA_CONFIG?.workshopAssetOrigins || [])]);
+  if (!configuredOrigins.has(resolved.origin)) throw new Error(`工坊资源来源未获部署配置授权：${resolved.origin}`);
+  const local = ["127.0.0.1", "localhost", "[::1]"].includes(resolved.hostname);
+  if (resolved.protocol !== "https:" && !(resolved.protocol === "http:" && local)) throw new Error("远程工坊资源必须使用 HTTPS");
+  return resolved.href;
 }
 
 function workshopPackageById(id) {
@@ -2057,6 +2230,33 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 1800) {
   const timer = window.setTimeout(() => controller.abort(), timeoutMs);
   try { return await fetch(url, { ...options, signal: controller.signal }); }
   finally { window.clearTimeout(timer); }
+}
+
+async function fetchBytesWithLimit(url, options, maximumBytes, timeoutMs) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    if (!response.ok) return { response, bytes: null };
+    const declared = Number(response.headers.get("Content-Length"));
+    if (Number.isFinite(declared) && declared > maximumBytes) throw new Error(`下载内容超过 ${maximumBytes} 字节安全上限`);
+    if (!response.body?.getReader) {
+      const buffer = await response.arrayBuffer();
+      if (buffer.byteLength > maximumBytes) throw new Error(`下载内容超过 ${maximumBytes} 字节安全上限`);
+      return { response, bytes: buffer };
+    }
+    const reader = response.body.getReader(); const chunks = []; let total = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maximumBytes) { await reader.cancel(); throw new Error(`下载内容超过 ${maximumBytes} 字节安全上限`); }
+      chunks.push(value);
+    }
+    const joined = new Uint8Array(total); let offset = 0;
+    for (const chunk of chunks) { joined.set(chunk, offset); offset += chunk.byteLength; }
+    return { response, bytes: joined.buffer };
+  } finally { window.clearTimeout(timer); }
 }
 
 function publicFallbackPackage(record) {
@@ -2082,6 +2282,7 @@ async function readFallbackWorkshopCatalog() {
 
 async function loadWorkshopCatalog() {
   workshopMessage.textContent = "正在读取工坊目录...";
+  await refreshWorkshopRevocations();
   const selectedType = workshopFilter === "all" ? "" : `&type=${encodeURIComponent(workshopFilter)}`;
   try {
     const response = await fetchWithTimeout(`${workshopApiBase()}/packages?engine=${WORKSHOP_ENGINE_VERSION}&limit=50${selectedType}`, { cache: "no-store" }, 1200);
@@ -2100,6 +2301,22 @@ async function loadWorkshopCatalog() {
     workshopMessage.textContent = `后端未连接，正在使用仓库内演示目录：${reason}`;
   }
   renderWorkshopCatalog();
+}
+
+async function refreshWorkshopRevocations() {
+  try {
+    const response = await fetchWithTimeout(`${workshopApiBase()}/revocations`, { cache: "no-store" }, 1800);
+    if (!response.ok) return false;
+    const payload = await response.json();
+    revokedWorkshopVersions = new Set((Array.isArray(payload.items) ? payload.items : []).map((item) => item?.versionId).filter(Boolean));
+    let changed = false;
+    for (const [id, entry] of Object.entries(installedWorkshopPackages)) {
+      if (revokedWorkshopVersions.has(`${id}@${entry.version}`)) { delete installedWorkshopPackages[id]; changed = true; }
+    }
+    if (pruneBrokenWorkshopDependencies()) changed = true;
+    if (changed) { syncWorkshopRuntime(); saveInstalledWorkshopPackages(); renderEditorPalette(); }
+    return true;
+  } catch { return false; }
 }
 
 function workshopTypeLabel(type) {
@@ -2212,6 +2429,7 @@ async function openWorkshopDetail(packageId) {
   const status = document.querySelector("#workshop-detail-status"); status.textContent = "校验内容包兼容性";
   workshopDetailInstall.disabled = true;
   workshopDetailInstall.textContent = workshopPackageById(item.id) ? "重新安装" : "安装此内容";
+  workshopDetailUninstall.hidden = !workshopPackageById(item.id);
   try {
     const resolution = await resolveWorkshopPackages([item.id]);
     if (selectedWorkshopPackage?.id !== item.id) return;
@@ -2248,6 +2466,8 @@ function localResolveWorkshop(catalog, rootIds) {
     visited.add(id);
     ordered.push({
       id: record.id, type: record.type, version: version.version,
+      title: record.title, author: record.author, license: version.license || record.license,
+      capabilities: version.capabilities || [], dependencies: version.dependencies || [],
       inlineManifest: {
         schemaVersion: 1, id: record.id, type: record.type, version: version.version, engine: version.engine,
         license: version.license || record.license, dependencies: version.dependencies || [], conflicts: version.conflicts || [],
@@ -2279,51 +2499,92 @@ async function resolveWorkshopPackages(rootIds) {
   }
 }
 
-function validateWorkshopManifest(manifest) {
-  if (!manifest || manifest.schemaVersion !== 1 || !WORKSHOP_TYPES.has(manifest.type)) throw new Error("不支持的工坊清单");
-  if (manifest.entrypoint?.kind !== "declarative" || manifest.entrypoint.file !== "content.json") throw new Error("仅允许声明式 content.json 入口");
-  if ((manifest.capabilities || []).some((capability) => !WORKSHOP_CAPABILITIES.has(capability))) throw new Error("内容包请求了未知能力");
-  for (const file of manifest.files || []) {
-    if (file.path !== "content.json" || file.mime !== "application/json" || file.size > 1024 * 1024) throw new Error("内容包文件不符合演示版安全策略");
-  }
-  return true;
-}
+function validateWorkshopManifest(manifest, expected = {}) { return WORKSHOP_CORE.validateManifest(manifest, expected); }
 
 async function sha256Hex(buffer) {
-  if (!globalThis.crypto?.subtle) return null;
+  if (!globalThis.crypto?.subtle) throw new Error("浏览器缺少 Web Crypto，已拒绝安装未校验内容");
   const digest = await globalThis.crypto.subtle.digest("SHA-256", buffer);
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+function stableWorkshopJson(value) {
+  if (Array.isArray(value)) return `[${value.map(stableWorkshopJson).join(",")}]`;
+  if (value && typeof value === "object") return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableWorkshopJson(value[key])}`).join(",")}}`;
+  return JSON.stringify(value);
+}
+
+async function verifyWorkshopSignature(manifest) {
+  const required = window.SUPER_KAGUYA_CONFIG?.workshopRequireSignatures === true;
+  if (!manifest.signature) {
+    if (required) throw new Error(`内容包 ${manifest.id} 缺少受信任签名`);
+    return false;
+  }
+  const encodedKey = window.SUPER_KAGUYA_CONFIG?.workshopTrustedKeys?.[manifest.signature.keyId];
+  if (!encodedKey) {
+    if (required) throw new Error(`内容包 ${manifest.id} 的签名密钥不受信任`);
+    return false;
+  }
+  try {
+    const publicKey = Uint8Array.from(atob(encodedKey), (character) => character.charCodeAt(0));
+    const signature = Uint8Array.from(atob(manifest.signature.value), (character) => character.charCodeAt(0));
+    const unsigned = { ...manifest }; delete unsigned.signature;
+    const key = await crypto.subtle.importKey("raw", publicKey, { name: "Ed25519" }, false, ["verify"]);
+    const valid = await crypto.subtle.verify("Ed25519", key, signature, new TextEncoder().encode(stableWorkshopJson(unsigned)));
+    if (!valid) throw new Error("签名不匹配");
+    return true;
+  } catch (error) { throw new Error(`内容包签名验证失败：${error.message}`); }
+}
+
 async function downloadWorkshopPackage(entry) {
   if (entry.inlineManifest) {
-    validateWorkshopManifest(entry.inlineManifest);
-    return { id: entry.id, type: entry.type, version: entry.version, manifest: entry.inlineManifest, content: entry.inlineContent };
+    const encoded = new TextEncoder().encode(JSON.stringify(entry.inlineContent));
+    const contentHash = await sha256Hex(encoded);
+    const manifest = { ...entry.inlineManifest, files: [{ path: "content.json", sha256: contentHash, size: encoded.byteLength, mime: "application/json" }] };
+    const installed = { id: entry.id, type: entry.type, version: entry.version, manifestSha256: await sha256Hex(new TextEncoder().encode(stableWorkshopJson(manifest))), contentSha256: contentHash, manifest, content: entry.inlineContent };
+    WORKSHOP_CORE.validatePackage(installed);
+    return installed;
   }
-  const manifestResponse = await fetchWithTimeout(workshopUrl(entry.manifestUrl), { cache: "no-store" }, 5000);
-  if (!manifestResponse.ok) throw new Error(`清单下载失败：${entry.id}`);
-  const manifestBytes = await manifestResponse.arrayBuffer();
+  if (!/^[a-f0-9]{64}$/.test(entry.manifestSha256 || "")) throw new Error(`清单缺少可信哈希：${entry.id}`);
+  const manifestDownload = await fetchBytesWithLimit(workshopUrl(entry.manifestUrl), { cache: "no-store" }, WORKSHOP_CORE.LIMITS.manifestBytes, 5000);
+  if (!manifestDownload.response.ok) throw new Error(`清单下载失败：${entry.id}`);
+  const manifestBytes = manifestDownload.bytes;
   const manifestHash = await sha256Hex(manifestBytes);
-  if (manifestHash && entry.manifestSha256 && manifestHash !== entry.manifestSha256) throw new Error(`清单哈希不匹配：${entry.id}`);
+  if (manifestHash !== entry.manifestSha256) throw new Error(`清单哈希不匹配：${entry.id}`);
   const manifest = JSON.parse(new TextDecoder().decode(manifestBytes));
-  validateWorkshopManifest(manifest);
+  validateWorkshopManifest(manifest, { id: entry.id, type: entry.type, version: entry.version });
+  await verifyWorkshopSignature(manifest);
   const contentFile = entry.files?.find((file) => file.path === "content.json");
   if (!contentFile) throw new Error(`缺少 content.json：${entry.id}`);
-  const contentResponse = await fetchWithTimeout(workshopUrl(contentFile.downloadUrl), { cache: "no-store" }, 8000);
-  if (!contentResponse.ok) throw new Error(`内容下载失败：${entry.id}`);
-  const contentBytes = await contentResponse.arrayBuffer();
+  const declaredFile = manifest.files[0];
+  if (contentFile.sha256 !== declaredFile.sha256 || contentFile.size !== declaredFile.size || contentFile.mime !== declaredFile.mime) throw new Error(`解析结果与清单不一致：${entry.id}`);
+  const contentDownload = await fetchBytesWithLimit(workshopUrl(contentFile.downloadUrl), { cache: "no-store" }, declaredFile.size, 8000);
+  if (!contentDownload.response.ok) throw new Error(`内容下载失败：${entry.id}`);
+  const contentBytes = contentDownload.bytes;
+  if (contentBytes.byteLength !== declaredFile.size) throw new Error(`内容大小与清单不一致：${entry.id}`);
   const contentHash = await sha256Hex(contentBytes);
-  if (contentHash && contentHash !== contentFile.sha256) throw new Error(`内容哈希不匹配：${entry.id}`);
+  if (contentHash !== contentFile.sha256) throw new Error(`内容哈希不匹配：${entry.id}`);
   const content = JSON.parse(new TextDecoder().decode(contentBytes));
-  return { id: entry.id, type: entry.type, version: entry.version, manifest, content };
+  const installed = { id: entry.id, type: entry.type, version: entry.version, manifestSha256: manifestHash, contentSha256: contentHash, manifest, content };
+  WORKSHOP_CORE.validatePackage(installed);
+  return installed;
 }
 
 async function installWorkshopResolution(resolution) {
   if (!resolution?.ok) throw new Error(resolution?.missing?.length ? `缺少依赖：${resolution.missing.map((item) => item.id).join(", ")}` : "依赖解析失败");
+  if (!Array.isArray(resolution.packages) || resolution.packages.length > WORKSHOP_CORE.LIMITS.packageCount) throw new Error("依赖数量超过安全上限");
   const downloaded = [];
-  for (const entry of resolution.packages) downloaded.push(await downloadWorkshopPackage(entry));
+  for (const entry of resolution.packages) {
+    if (revokedWorkshopVersions.has(`${entry.id}@${entry.version}`)) throw new Error(`内容包版本已被安全撤回：${entry.id}@${entry.version}`);
+    downloaded.push(await downloadWorkshopPackage(entry));
+  }
+  const previous = installedWorkshopPackages;
+  installedWorkshopPackages = { ...installedWorkshopPackages };
   for (const item of downloaded) installedWorkshopPackages[item.id] = { ...item, installedAt: Date.now() };
-  if (!saveInstalledWorkshopPackages()) throw new Error("浏览器存储空间不足");
+  try {
+    syncWorkshopRuntime();
+    if (!saveInstalledWorkshopPackages()) throw new Error("浏览器存储空间不足");
+  } catch (error) { installedWorkshopPackages = previous; syncWorkshopRuntime(); throw error; }
+  renderEditorPalette();
   return downloaded;
 }
 
@@ -2338,8 +2599,13 @@ async function promptWorkshopInstall(rootIds, title = "安装内容包") {
     const resolution = await resolveWorkshopPackages(rootIds);
     if (!resolution.ok) throw new Error(resolution.missing?.length ? `缺少依赖：${resolution.missing.map((item) => item.id).join(", ")}` : "依赖冲突或循环");
     pendingWorkshopInstall = resolution;
-    document.querySelector("#workshop-install-detail").textContent = "以下内容将按精确版本安装。所有入口均为声明式 JSON。";
-    workshopDependencies.textContent = resolution.packages.map((item) => `${item.id} @ ${item.version}`).join("\n");
+    document.querySelector("#workshop-install-detail").textContent = `以下 ${resolution.packages.length} 个内容包将按精确版本安装；共 ${formatWorkshopBytes(resolution.totalSize || 0)}。新增能力会在每项下方列出。`;
+    workshopDependencies.replaceChildren(...resolution.packages.map((item) => {
+      const row = document.createElement("div"); const titleNode = document.createElement("strong"); const detail = document.createElement("small");
+      titleNode.textContent = `${item.title || item.id} @ ${item.version}`;
+      detail.textContent = `${item.author || "Unknown"} / ${item.license || "未声明"} / ${(item.capabilities || []).join(", ") || "无额外能力"}`;
+      row.append(titleNode, detail); return row;
+    }));
   } catch (error) {
     workshopInstallPanel.hidden = true;
     workshopMessage.textContent = `无法准备安装：${error.message}`;
@@ -2356,23 +2622,41 @@ function finishWorkshopPrompt(result) {
   resolve?.(result);
 }
 
-function workshopDependencyIds(map) {
+function workshopDependencyRequirements(map) {
   const properties = tiledProperties(map?.properties);
   let source = properties.workshopDependencies;
   if (typeof source === "string") {
     try { source = JSON.parse(source); } catch { return []; }
   }
   const packages = Array.isArray(source) ? source : source?.packages;
-  return [...new Set((Array.isArray(packages) ? packages : []).map((item) => typeof item === "string" ? item : item?.id).filter(Boolean))];
+  const normalized = (Array.isArray(packages) ? packages : []).map((item) => typeof item === "string" ? { id: item } : {
+    id: item?.id,
+    version: typeof item?.version === "string" ? item.version : null,
+    manifestSha256: typeof item?.manifestSha256 === "string" ? item.manifestSha256 : null,
+    contentSha256: typeof item?.contentSha256 === "string" ? item.contentSha256 : null,
+  }).filter((item) => item.id);
+  return [...new Map(normalized.map((item) => [item.id, item])).values()].slice(0, WORKSHOP_CORE.LIMITS.packageCount);
 }
 
 async function ensureWorkshopDependencies(map) {
-  const missing = workshopDependencyIds(map).filter((id) => !workshopPackageById(id));
-  if (!missing.length) return true;
+  const requirements = workshopDependencyRequirements(map);
+  const mismatched = requirements.filter((requirement) => {
+    const installed = workshopPackageById(requirement.id);
+    return !installed || (requirement.version && installed.version !== requirement.version)
+      || (requirement.manifestSha256 && installed.manifestSha256 !== requirement.manifestSha256)
+      || (requirement.contentSha256 && installed.contentSha256 !== requirement.contentSha256);
+  });
+  if (!mismatched.length) return true;
   const wasHidden = workshopScreen.hidden;
-  const installed = await promptWorkshopInstall(missing, `此关卡需要 ${missing.length} 个工坊依赖`);
+  const installed = await promptWorkshopInstall(mismatched.map((item) => item.id), `此关卡需要安装或更新 ${mismatched.length} 个工坊依赖`);
   if (wasHidden) workshopScreen.hidden = true;
-  return installed;
+  if (!installed) return false;
+  return requirements.every((requirement) => {
+    const entry = workshopPackageById(requirement.id);
+    return entry && (!requirement.version || entry.version === requirement.version)
+      && (!requirement.manifestSha256 || entry.manifestSha256 === requirement.manifestSha256)
+      && (!requirement.contentSha256 || entry.contentSha256 === requirement.contentSha256);
+  });
 }
 
 async function openWorkshop() {
@@ -2414,13 +2698,25 @@ workshopDetailInstall.addEventListener("click", () => {
     closeWorkshopDetail();
   });
 });
+workshopDetailUninstall.addEventListener("click", () => {
+  if (!selectedWorkshopPackage) return;
+  const packageId = selectedWorkshopPackage.id;
+  const dependants = Object.values(installedWorkshopPackages).filter((entry) => entry.id !== packageId && (entry.manifest?.dependencies || []).some((dependency) => dependency.kind === "required" && dependency.id === packageId));
+  if (dependants.length) {
+    workshopMessage.textContent = `无法卸载，仍被依赖：${dependants.map((entry) => entry.id).join(", ")}`;
+    return;
+  }
+  delete installedWorkshopPackages[packageId];
+  syncWorkshopRuntime(); saveInstalledWorkshopPackages(); renderWorkshopCatalog(); renderEditorPalette(); closeWorkshopDetail();
+  workshopMessage.textContent = `已卸载 ${packageId}`;
+});
 document.querySelector("#workshop-install-confirm").addEventListener("click", async () => {
   if (!pendingWorkshopInstall) return;
   const button = document.querySelector("#workshop-install-confirm");
   button.disabled = true;
   try {
     const installed = await installWorkshopResolution(pendingWorkshopInstall);
-    workshopMessage.textContent = `已安装 ${installed.length} 个声明式内容包，物品类组件已同步到编辑器。`;
+    workshopMessage.textContent = `已安装 ${installed.length} 个声明式内容包，组件与关卡已同步。`;
     finishWorkshopPrompt(true);
     if (!editorScreen.hidden) renderEditorPalette();
   } catch (error) {
@@ -2526,7 +2822,7 @@ function playerRect(collider = activeCollider()) {
 function enemyRect(enemy) {
   const collider = enemy.kind === "boss"
     ? { width: enemy.width, height: enemy.height }
-    : enemyCollider;
+    : enemy.workshopDefinition ? { width: enemy.workshopDefinition.width || enemyCollider.width, height: enemy.workshopDefinition.height || enemyCollider.height } : enemyCollider;
   return entityRect(enemy, collider);
 }
 
@@ -2838,7 +3134,7 @@ function updateEnemy(enemy, deltaTime) {
       markEnemyDefeated(enemy);
       enemy.alive = false;
       runStats.kills += 1;
-      addScore(20);
+      addScore(enemy.scoreValue ?? 20);
     }
     return;
   }
@@ -2942,7 +3238,7 @@ function updateBoss(boss, deltaTime) {
       boss.alive = false;
       boss.defeatedCounted = true;
       runStats.kills += 1;
-      addScore(boss.score);
+      addScore(boss.scoreValue ?? boss.score ?? 100);
     }
     return;
   }
@@ -3127,7 +3423,7 @@ function takeDamage(enemy) {
     damageEnemy(enemy, 20);
     return;
   }
-  damagePlayer(10, enemy.x);
+  damagePlayer(enemy.contactDamage ?? 10, enemy.x);
 }
 
 function triggerGameOver() {
@@ -3728,6 +4024,8 @@ function update(deltaTime) {
     if (freezeScene) return;
   }
   if (runStats) runStats.elapsed += deltaTime;
+  workshopTimerElapsed += deltaTime;
+  if (workshopTimerElapsed >= 1) { workshopTimerElapsed %= 1; workshopRuntime.emit("timer.tick", { elapsed: runStats?.elapsed || 0 }); }
   if (timeLimit > 0) {
     timeRemaining = Math.max(0, timeRemaining - deltaTime);
     canvas.dataset.timeRemaining = timeRemaining.toFixed(2);
@@ -3833,6 +4131,11 @@ function update(deltaTime) {
       bottom: key.y,
     };
     if (overlaps(hitbox, keyRect)) collectKey(key);
+  }
+  for (const pickup of workshopPickups) {
+    if (pickup.collected) continue;
+    const pickupRect = { left: pickup.x - pickup.width / 2, right: pickup.x + pickup.width / 2, top: pickup.y - pickup.height, bottom: pickup.y };
+    if (overlaps(hitbox, pickupRect)) collectWorkshopItem(pickup);
   }
   updateCheckpoints();
   updateNearbyInteractable();
@@ -3961,7 +4264,9 @@ function drawBackground() {
   const fallback = theme === "dawn" ? "#ffd0ca" : theme === "night" ? "#211d4d" : "#d8bcff";
   context.fillStyle = fallback;
   context.fillRect(0, 0, canvas.width, canvas.height);
-  if (theme === "lunar" && lunarTownSprite.complete && lunarTownSprite.naturalWidth) {
+  const backgroundImage = workshopBackgroundImage?.complete && workshopBackgroundImage.naturalWidth ? workshopBackgroundImage
+    : theme === "lunar" && lunarTownSprite.complete && lunarTownSprite.naturalWidth ? lunarTownSprite : null;
+  if (backgroundImage) {
     const segmentWidth = canvas.width;
     const shift = cameraRenderX * 0.06;
     const firstSegment = Math.floor(shift / segmentWidth) - 1;
@@ -3972,9 +4277,9 @@ function drawBackground() {
       if (Math.abs(segment) % 2 === 1) {
         context.translate(x + segmentWidth, 0);
         context.scale(-1, 1);
-        context.drawImage(lunarTownSprite, 0, 0, segmentWidth, canvas.height);
+        context.drawImage(backgroundImage, 0, 0, segmentWidth, canvas.height);
       } else {
-        context.drawImage(lunarTownSprite, x, 0, segmentWidth, canvas.height);
+        context.drawImage(backgroundImage, x, 0, segmentWidth, canvas.height);
       }
       context.restore();
     }
@@ -4451,6 +4756,7 @@ function drawWorldObjects() {
     if (image?.complete && image.naturalWidth) context.drawImage(image, x - 16, Math.round(pickup.y - 32 + bob), 32, 32);
     else drawSushiFallback(context, x - 12, Math.round(pickup.y - 24 + bob), 24, pickup.foodIndex);
   }
+  drawWorkshopContent();
 
   if (blockFood) {
     const image = foodSprites[blockFood.foodIndex];
@@ -4606,6 +4912,30 @@ function drawPowerItem(item) {
   context.drawImage(itemEffectCanvas, x - 1, y - 1);
 }
 
+function drawWorkshopSprite(definition, centerX, bottomY, width, height, direction = 1) {
+  const image = workshopAssetImage(definition.sprite, definition.packageId);
+  if (image?.complete && image.naturalWidth) {
+    context.save(); context.translate(Math.round(centerX), Math.round(bottomY)); context.scale(direction < 0 ? -1 : 1, 1);
+    context.drawImage(image, -width / 2, -height, width, height); context.restore(); return true;
+  }
+  context.fillStyle = "#24204e"; context.fillRect(Math.round(centerX - width / 2), Math.round(bottomY - height), width, height);
+  context.fillStyle = "#9de7ea"; context.fillRect(Math.round(centerX - width / 2 + 3), Math.round(bottomY - height + 3), Math.max(2, width - 6), Math.max(2, height - 6));
+  return false;
+}
+
+function drawWorkshopContent() {
+  for (const decoration of workshopDecorations) drawWorkshopSprite(decoration.definition, decoration.x + decoration.width / 2 - cameraRenderX, decoration.y + decoration.height, decoration.width, decoration.height);
+  for (const pickup of workshopPickups) {
+    if (pickup.collected) continue;
+    const bob = Math.round(Math.sin(questionPhase * 3 + pickup.phase) * 2);
+    drawWorkshopSprite(pickup.definition, pickup.x - cameraRenderX, pickup.y + bob, pickup.width, pickup.height);
+    if (debugMode) {
+      context.fillStyle = "#fff4ef"; context.font = "bold 7px Consolas, monospace"; context.textAlign = "center";
+      context.fillText(pickup.definition.label, pickup.x - cameraRenderX, pickup.y - pickup.height - 5); context.textAlign = "start";
+    }
+  }
+}
+
 function drawFireball(fireball) {
   const x = Math.round(fireball.x - cameraRenderX);
   const y = Math.round(fireball.y);
@@ -4619,7 +4949,6 @@ function drawFireball(fireball) {
 }
 
 function drawEnemies() {
-  if (!enemySprite.complete) return;
   for (const enemy of enemies) {
     if (!enemy.alive) continue;
     const blinkInterval = ENEMY_BLINK_INTERVAL;
@@ -4628,20 +4957,14 @@ function drawEnemies() {
     }
     const screenX = Math.round(enemy.x - cameraRenderX);
     if (screenX < -FRAME_SIZE * DRAW_SCALE || screenX > canvas.width + FRAME_SIZE * DRAW_SCALE) continue;
-    const frame = enemy.variant * 2 + (enemy.direction > 0 ? 0 : 1);
-    const drawX = screenX - FRAME_SIZE * DRAW_SCALE / 2;
-    const drawY = Math.round(enemy.y - FRAME_SIZE * DRAW_SCALE);
-    context.drawImage(
-      enemySprite,
-      frame * FRAME_SIZE,
-      0,
-      FRAME_SIZE,
-      FRAME_SIZE,
-      drawX,
-      drawY,
-      FRAME_SIZE * DRAW_SCALE,
-      FRAME_SIZE * DRAW_SCALE,
-    );
+    if (enemy.workshopDefinition) {
+      drawWorkshopSprite(enemy.workshopDefinition, screenX, enemy.y, enemy.workshopDefinition.width || 34, enemy.workshopDefinition.height || 50, enemy.direction);
+    } else if (enemySprite.complete) {
+      const frame = enemy.variant * 2 + (enemy.direction > 0 ? 0 : 1);
+      const drawX = screenX - FRAME_SIZE * DRAW_SCALE / 2;
+      const drawY = Math.round(enemy.y - FRAME_SIZE * DRAW_SCALE);
+      context.drawImage(enemySprite, frame * FRAME_SIZE, 0, FRAME_SIZE, FRAME_SIZE, drawX, drawY, FRAME_SIZE * DRAW_SCALE, FRAME_SIZE * DRAW_SCALE);
+    }
     if (debugMode) {
       const rect = enemyRect(enemy);
       context.strokeStyle = "#ff4f71";
@@ -4686,6 +5009,9 @@ function drawBosses() {
     const top = Math.round(boss.y - boss.height);
     if (x + boss.width / 2 < 0 || x - boss.width / 2 > canvas.width) continue;
     const left = Math.round(x - boss.width / 2);
+    if (boss.workshopDefinition) {
+      drawWorkshopSprite(boss.workshopDefinition, x, boss.y, boss.width, boss.height, boss.direction);
+    } else {
     const unit = Math.max(2, Math.floor(boss.width / 16));
     context.fillStyle = "#17142f";
     context.fillRect(left + unit * 2, top + unit * 6, boss.width - unit * 4, boss.height - unit * 6);
@@ -4706,6 +5032,7 @@ function drawBosses() {
     context.fillRect(left + unit * 4, top, unit * 7, unit * 2);
     context.fillRect(left + unit * 2, top + unit, unit * 2, unit);
     context.fillRect(left + unit * 11, top + unit, unit * 2, unit);
+    }
     if (boss.phaseTransition > 0) {
       context.strokeStyle = Math.floor(questionPhase * 12) % 2 ? "#fff09c" : "#9de7ea";
       context.lineWidth = 4;
@@ -5358,8 +5685,9 @@ function renderLevelList(tab = "story") {
   const save = currentSave();
   customLevelDefinitions = save.custom;
   storyLevels.replaceChildren(...levelDefinitions.map((definition) => makeLevelCard(definition, !isUnlocked(definition, save))));
-  customLevels.replaceChildren(...customLevelDefinitions.map((definition) => makeLevelCard(definition, false, true)));
-  if (!customLevelDefinitions.length) customLevels.textContent = "尚未导入自定义关卡";
+  const communityLevels = [...workshopLevelDefinitions, ...customLevelDefinitions];
+  customLevels.replaceChildren(...communityLevels.map((definition) => makeLevelCard(definition, false, true)));
+  if (!communityLevels.length) customLevels.textContent = "尚未导入自定义关卡";
   storyLevels.hidden = tab !== "story";
   customLevels.hidden = tab !== "custom";
   document.querySelectorAll(".tab-button").forEach((button) => button.classList.toggle("is-active", button.dataset.tab === tab));
@@ -5429,7 +5757,7 @@ function showTitleScreen() {
 }
 
 async function startLevel(levelKey) {
-  const definition = [...levelDefinitions, ...customLevelDefinitions].find((item) => item.key === levelKey);
+  const definition = [...levelDefinitions, ...workshopLevelDefinitions, ...customLevelDefinitions].find((item) => item.key === levelKey);
   if (!definition) return;
   const requestId = ++loadRequestId;
   levelScreen.hidden = true;
@@ -5440,21 +5768,18 @@ async function startLevel(levelKey) {
   stateLabel.textContent = "LOADING";
   drawLoading("LOADING MAP...");
   try {
+    if (definition.map && !(await ensureWorkshopDependencies(definition.map))) {
+      startScreen.classList.remove("is-loading"); showLevelSelect("custom"); levelMessage.textContent = "已取消安装关卡依赖。"; return;
+    }
     const loaded = definition.map ? loadMapData(definition.map, requestId) : await loadMap(definition.url, requestId);
     if (!loaded) return;
-    if (!(await ensureWorkshopDependencies(activeMapData))) {
-      mapReady = false;
-      startScreen.classList.remove("is-loading");
-      showLevelSelect(definition.map ? "custom" : "story");
-      levelMessage.textContent = "已取消安装关卡依赖。";
-      return;
-    }
     const activeProperties = tiledProperties(activeMapData?.properties);
     levelStartsFire = definition.startsFire === true || propertyBoolean(activeProperties.startsFire, false)
       || definition.startsPowered === true || propertyBoolean(activeProperties.startsPowered, false);
     levelStartsBig = definition.startsBig === true || propertyBoolean(activeProperties.startsBig, false) || levelStartsFire;
     activeLevelKey = levelKey;
     resetLevel();
+    workshopRuntime.emit("level.start", { levelKey });
     updateHudTester();
     startScreen.classList.remove("is-loading");
     startScreen.hidden = true;
@@ -5748,7 +6073,7 @@ function restoreEditorDraft() {
   try {
     const draft = JSON.parse(localStorage.getItem(EDITOR_DRAFT_KEY) || "null");
     if (!draft || draft.version !== 2 || !Array.isArray(draft.objects)) return false;
-    const validTypes = new Set(editorTypes.map(([type]) => type).filter((type) => !["select", "erase"].includes(type)));
+    const validTypes = new Set([...editorTypes, ...compatibleWorkshopEditorEntries()].map(([type]) => type).filter((type) => !["select", "erase"].includes(type)));
     const columns = Math.max(EDITOR_MIN_COLUMNS, Math.min(EDITOR_MAX_COLUMNS, Number(draft.columns) || EDITOR_DEFAULT_COLUMNS));
     const rows = Math.max(EDITOR_MIN_ROWS, Math.min(EDITOR_MAX_ROWS, Number(draft.rows) || EDITOR_ROWS));
     const objects = draft.objects.slice(0, 6000).filter((item) => item && validTypes.has(item.type)
@@ -6007,7 +6332,10 @@ const EDITOR_TUTORIALS = {
 
 function updateEditorTutorial(type = selectedEditorObject()?.type || editorState.tool) {
   if (!editorTutorial) return;
-  const [title, text] = EDITOR_TUTORIALS[type] || ["社区组件", "此组件来自已安装内容包；请查看内容包说明和所声明的能力。"];
+  const workshop = workshopEditorDefinition(type)?.definition;
+  const [title, text] = workshop
+    ? [workshop.editor?.label || workshop.label, workshop.editor?.help || "此声明式组件来自已安装工坊内容包，不包含可执行代码。"]
+    : EDITOR_TUTORIALS[type] || ["社区组件", "此组件来自已安装内容包；请查看内容包说明和所声明的能力。"];
   const heading = document.createElement("strong");
   heading.textContent = title;
   const body = document.createElement("p");
@@ -6121,11 +6449,18 @@ function renderEditorObjectInspector() {
 }
 
 function compatibleWorkshopEditorEntries() {
-  return Object.values(installedWorkshopPackages).flatMap((entry) => {
-    if (entry.type !== "item" || entry.content?.kind !== "item-definition") return [];
-    const adapter = { "moon-key": "key" }[entry.content.item?.id];
-    return adapter ? [[adapter, `工坊：${entry.content.item?.editor?.label || entry.id}`, entry.id]] : [];
-  });
+  return [
+    ...workshopRuntime.listItems().map((definition) => [`workshop-item|${definition.qualifiedId}`, `工坊：${definition.editor?.label || definition.label}`, definition.packageId]),
+    ...workshopRuntime.listEntities().filter((definition) => definition.editor).map((definition) => [`workshop-entity|${definition.qualifiedId}`, `工坊：${definition.editor.label || definition.label}`, definition.packageId]),
+  ];
+}
+
+function workshopEditorDefinition(type) {
+  const separator = type.indexOf("|"); if (separator < 0) return null;
+  const category = type.slice(0, separator); const id = type.slice(separator + 1);
+  if (category === "workshop-item") return { category: "item", definition: workshopRuntime.getItem(id) };
+  if (category === "workshop-entity") return { category: "entity", definition: workshopRuntime.getEntity(id) };
+  return null;
 }
 
 function renderEditorPalette() {
@@ -6160,7 +6495,12 @@ function renderEditorPalette() {
 function drawEditorPalettePreview(preview, type) {
   const previewContext = preview.getContext("2d");
   previewContext.imageSmoothingEnabled = false;
-  if (type === "select") {
+  const workshop = workshopEditorDefinition(type);
+  if (workshop?.definition) {
+    const image = workshopAssetImage(workshop.definition.sprite, workshop.definition.packageId);
+    if (image?.complete && image.naturalWidth) previewContext.drawImage(image, 2, 2, 28, 28);
+    else { previewContext.fillStyle = "#24204e"; previewContext.fillRect(3, 3, 26, 26); previewContext.fillStyle = workshop.category === "item" ? "#fff09c" : "#ff82bd"; previewContext.fillRect(7, 7, 18, 18); }
+  } else if (type === "select") {
     previewContext.strokeStyle = "#9de7ea"; previewContext.lineWidth = 2; previewContext.strokeRect(5, 5, 22, 22);
     previewContext.fillStyle = "#fff4ef"; previewContext.fillRect(4, 4, 5, 5); previewContext.fillRect(24, 24, 5, 5);
   } else if (type === "ground") {
@@ -6327,7 +6667,13 @@ function drawEditorUnlockShield(item, left, top, width, height) {
 function drawEditorObject(item) {
   const x = item.x * EDITOR_CELL;
   const y = item.y * EDITOR_CELL;
-  if (item.type === "ground") drawEditorGroundCell(x, y);
+  const workshop = workshopEditorDefinition(item.type);
+  if (workshop?.definition) {
+    const definition = workshop.definition; const image = workshopAssetImage(definition.sprite, definition.packageId);
+    const width = Math.min(64, definition.width || 28); const height = Math.min(64, definition.height || 28);
+    if (image?.complete && image.naturalWidth) editorContext.drawImage(image, x + 16 - width / 2, y + 32 - height, width, height);
+    else { editorContext.fillStyle = workshop.category === "item" ? "#fff09c" : "#ff82bd"; editorContext.fillRect(x + 5, y + 5, 22, 22); }
+  } else if (item.type === "ground") drawEditorGroundCell(x, y);
   else if (item.type === "brick") drawEditorBrickCell(x, y);
   else if (item.type === "question") drawEditorQuestionCell(x, y);
   else if (item.type === "food") {
@@ -6741,7 +7087,7 @@ function editAt(event) {
     renderEditor();
     return;
   }
-  if (["spawn", "enemy", "boss", "food", "key", "mirror", "gravity", "shop"].includes(editorState.tool)) point.y = Math.min(point.y, editorState.rows - 2);
+  if (["spawn", "enemy", "boss", "food", "key", "mirror", "gravity", "shop"].includes(editorState.tool) || workshopEditorDefinition(editorState.tool)) point.y = Math.min(point.y, editorState.rows - 2);
   if (editorState.tool === "checkpoint") point.y = Math.max(1, Math.min(point.y, editorState.rows - 2));
   if (["platform", "linked", "oneWay", "falling", "rift"].includes(editorState.tool)) {
     const length = Math.max(1, Number(defaultEditorProperties(editorState.tool).length) || 1);
@@ -6851,7 +7197,13 @@ function editorMap() {
     const x = item.x * EDITOR_CELL; const y = item.y * EDITOR_CELL;
     const properties = { ...defaultEditorProperties(item.type), ...(item.properties || {}) };
     let created = null;
-    if (item.type === "ground") created = object(id++, "Ground", "Solid", x, y, 32, 32, [{ name: "visual", type: "bool", value: true }]);
+    const workshop = workshopEditorDefinition(item.type);
+    if (workshop?.definition) created = object(
+      id++, workshop.definition.label, workshop.category === "item" ? "WorkshopItem" : "WorkshopEntity",
+      x + 16, y + 32, workshop.definition.width || 24, workshop.definition.height || 24,
+      [prop("definition", "string", workshop.definition.qualifiedId)],
+    );
+    else if (item.type === "ground") created = object(id++, "Ground", "Solid", x, y, 32, 32, [{ name: "visual", type: "bool", value: true }]);
     else if (item.type === "brick") created = object(id++, `Brick ${item.uid}`, "BrickBlock", x, y, 32, 32, [
       prop("breakable", "bool", Boolean(properties.breakable)),
       prop("contents", "string", properties.contents === "none" ? "" : properties.contents),
@@ -6984,6 +7336,16 @@ function editorMap() {
   const startsBig = document.querySelector("#editor-start-big").checked || startsFire;
   const author = document.querySelector("#editor-author").value.trim().slice(0, 40);
   const description = document.querySelector("#editor-description").value.trim().slice(0, 240);
+  const dependencyIds = new Set(editorState.objects.map((item) => workshopEditorDefinition(item.type)?.definition?.packageId).filter(Boolean));
+  const addRequiredDependencies = (packageId) => {
+    const entry = installedWorkshopPackages[packageId];
+    for (const dependency of entry?.manifest?.dependencies || []) if (dependency.kind === "required" && !dependencyIds.has(dependency.id)) { dependencyIds.add(dependency.id); addRequiredDependencies(dependency.id); }
+  };
+  [...dependencyIds].forEach(addRequiredDependencies);
+  const workshopDependencies = [...dependencyIds].map((packageId) => {
+    const entry = installedWorkshopPackages[packageId];
+    return { id: packageId, version: entry.version, manifestSha256: entry.manifestSha256, contentSha256: entry.contentSha256 };
+  });
   const map = {
     type: "map", version: "1.10", tiledversion: "1.10", orientation: "orthogonal", renderorder: "right-down",
     width: editorState.columns, height: editorState.rows, tilewidth: EDITOR_CELL, tileheight: EDITOR_CELL,
@@ -7000,6 +7362,7 @@ function editorMap() {
       { name: "startsBig", type: "bool", value: startsBig },
       { name: "startsFire", type: "bool", value: startsFire },
       { name: "autoPortal", type: "bool", value: editorState.objects.some((item) => item.type === "portal") },
+      { name: "workshopDependencies", type: "string", value: JSON.stringify({ schemaVersion: 1, packages: workshopDependencies }) },
     ],
     layers: [{ id: 1, name: "Objects", type: "objectgroup", draworder: "topdown", visible: true, objects }],
   };
